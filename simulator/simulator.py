@@ -2,10 +2,6 @@
 import numpy as np
 
 class Simulator:
-    """
-    Invólucro (wrapper) simples e síncrono para um simulador de agente único.
-    """
-
     def __init__(self, env, max_steps=None, agent=None):
         self.env = env
         self.max_steps = int(max_steps) if max_steps is not None else env.max_steps
