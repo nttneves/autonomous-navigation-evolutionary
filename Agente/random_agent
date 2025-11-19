@@ -1,0 +1,46 @@
+import numpy as np
+from Agent import Agent
+
+
+
+class random_agent(Agent):
+    def __init__(self, id_agente, ambiente, num_acoes, sensores):
+        super().__init__(id_agente, sensores=sensores)
+        self.ambiente = ambiente # Referência ao ambiente
+        self.num_acoes = num_acoes  # número de ações possíveis
+        
+
+    def observacao(self, obs):
+        self.last_observation = obs
+
+
+    @classmethod
+    def cria(cls, ficheiro_json: str):
+        import json
+        with open(ficheiro_json, "r") as f:
+            data = json.load(f)
+
+        return cls(
+            id_agente=data["id"],
+            ambiente=None,          # atribuído pelo motor
+            num_acoes=data["num_acoes"],
+            sensores=[]
+        )
+    
+
+
+
+    ##precesão do agente e decisão da acção a tomar
+    def age(self) -> int:
+        ##Escolhe uma ação aleatória.
+        return np.random.randint(0, self.num_acoes)
+        
+
+
+
+    def avaliacaoEstadoAtual(self, recompensa: float):
+        self.regista_reward(recompensa)  
+        
+        
+
+    
