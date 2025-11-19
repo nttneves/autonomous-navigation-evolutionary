@@ -1,4 +1,4 @@
-# agent.py (substitui/actualiza)
+# agent.py
 from abc import ABC, abstractmethod
 import queue
 import json
@@ -7,15 +7,13 @@ import time
 class Agent(ABC):
     def __init__(self, id: str, politica=None, sensores=None):
         self.id = id
-        self.politica = politica or {}
-        # sensores agora é um dict {nome: sensor}
-        self.sensores = sensores or {}  
+        self.politica = politica or None
+        self.sensores = sensores or {}
         self.inbox = queue.Queue()
         self.last_observation = None
         self.last_action = None
         self.rewards = []
         self.ambiente = None
-        # atributo posicao que os sensores esperam
         self.posicao = None
 
     @classmethod
@@ -25,13 +23,16 @@ class Agent(ABC):
         return cls(data["id"], data.get("politica"), data.get("sensores"))
 
     @abstractmethod
-    def observacao(self, obs): pass
+    def observacao(self, obs): 
+        pass
 
     @abstractmethod
-    def age(self): pass
+    def age(self) -> int:
+        pass
 
     @abstractmethod
-    def avaliacaoEstadoAtual(self, recompensa: float): pass
+    def avaliacaoEstadoAtual(self, recompensa: float):
+        pass
 
     def instala(self, nome: str, sensor):
         self.sensores[nome] = sensor

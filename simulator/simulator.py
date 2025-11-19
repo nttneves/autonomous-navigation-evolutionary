@@ -2,86 +2,121 @@
 import numpy as np
 
 class Simulator:
-    def __init__(self, env, max_steps=None, agent=None):
+    """
+    Simulador responsável por:
+      - resetar o ambiente
+      - registar o agente na posição inicial
+      - ciclo percepção → deliberação → ação
+    """
+
+    def __init__(self, env, max_steps=None):
         self.env = env
         self.max_steps = int(max_steps) if max_steps is not None else env.max_steps
-        self.agent = agent
-        self._last_obs = None
-        self._done = True
-        self._steps = 0
-        self._total_reward = 0.0
 
+    # ---------------------------------------------------------
+    # EPISÓDIO COMPLETO
+    # ---------------------------------------------------------
     def run_episode(self, agent, render=False):
-        obs = self.env.reset()
-        traj = [tuple(self.env.agent_pos.copy())]
-        total_reward = 0.0
-        done = False
-        steps = 0
-        # lopp do episódio- continua até terminar ou atingir o máximo de passos
-        while not done and steps < self.max_steps:
-            # O agente escolhe uma ação com base na observação atual
-            a = agent.act(obs)
-            # aplica a ação no ambiente
-            obs, r, done, info = self.env.step(a)
-            total_reward += r
-            traj.append(tuple(self.env.agent_pos.copy()))
-            steps += 1
-        # posição final do agente
-        final = tuple(self.env.agent_pos.copy())
-        # posição do objetivo
-        goal = tuple(self.env.goal_pos.copy()) if hasattr(self.env, "goal_pos") else None
-        # agente alcançou o objetivo?
-        reached = (final == goal) if goal is not None else False
+        """
+        Corre um único episódio seguindo exatamente o diagrama:
+          1. env.reset()
+          2. registar agente
+          3. loop de:
+                observacao → agente.age() → env.agir()
+                env.atualizacao()
+        """
+        # 1) Reset ambiente
+        self.env.reset()
 
-        # Retorna um dicionário com os resultados do episódio
+        # 2) Posicionar o agente no canto inferior esquerdo
+        start_pos = (0, self.env.tamanho[1] - 1)
+        self.env.regista_agente(agent, start_pos)
+
+        # 3) Loop principal
+        traj = [start_pos]
+        total_reward = 0.0
+        steps = 0
+        done = False
+
+        # primeira observação
+        obs = self.env.observacaoPara(agent)
+
+        while not done and steps < self.max_steps:
+            # 3.1) agente delibera ação
+            action = agent.age(obs)
+
+            # 3.2) ambiente reage
+            reward, done, info = self.env.agir(action, agent)
+            total_reward += reward
+
+            # 3.3) observar novo estado
+            obs = self.env.observacaoPara(agent)
+
+            # 3.4) registrar posição
+            pos = self.env.get_posicao_agente(agent)
+            traj.append(pos)
+
+            # 3.5) ambiente avança o tempo
+            if hasattr(self.env, "atualizacao"):
+                self.env.atualizacao()
+
+            steps += 1
+
+        # Posição final
+        final_pos = self.env.get_posicao_agente(agent)
+        goal_pos = getattr(self.env, "farol_pos", None)
+        reached = (goal_pos is not None and final_pos == goal_pos)
+
         return {
             "total_reward": float(total_reward),
-            "steps": int(steps),
-            "traj": traj,  # Trajetória (lista de posições)
-            "final_pos": final,
-            "goal_pos": goal,
+            "steps": steps,
+            "traj": traj,
+            "final_pos": final_pos,
+            "goal_pos": goal_pos,
             "reached_goal": bool(reached)
         }
 
+
     def attach_agent(self, agent):
-        # Liga (associa) um agente ao simulador para uso na API de passos visuais
         self.agent = agent
 
     def reset_env(self):
-        # Reinicia o ambiente e o estado interno do simulador
-        self._last_obs = self.env.reset()
+        self.env.reset()
+        start_pos = (0, self.env.tamanho[1] - 1)
+        self.env.regista_agente(self.agent, start_pos)
+        obs = self.env.observacaoPara(self.agent)
+        self._last_obs = obs
         self._done = False
         self._steps = 0
         self._total_reward = 0.0
-        return self._last_obs
+        return obs
 
     def step_once_for_visualiser(self, action=None):
         """
-        Avança um único "tick" (passo). 
-        Se a 'action' for None, usa o agente associado para escolher a ação a partir da observação atual.
-        Retorna (obs, recompensa, terminou, info)
+        Executa 1 tick do simulador (útil para UI ou debug).
         """
-        # Se o episódio anterior tiver terminado, reinicia o ambiente
         if self._done:
             self.reset_env()
-        # Obtém a observação atual
+
         obs = self._last_obs
-        
+
+        # escolher ação
         if action is None:
-            # Se a ação não foi fornecida, usa o agente
-            if self.agent is None:
-                raise RuntimeError("No agent attached for automatic stepping")
-            a = self.agent.act(obs)
-        else:
-            a = int(action)
-            
-        # Executa o passo no ambiente
-        obs2, reward, done, info = self.env.step(a)
-        
-        # Atualiza o estado interno
+            action = self.agent.age(obs)
+
+        # aplicar ação
+        reward, done, info = self.env.agir(action, self.agent)
+
+        # nova observação
+        obs2 = self.env.observacaoPara(self.agent)
+
+        # atualizar estado interne
         self._last_obs = obs2
         self._done = bool(done)
         self._steps += 1
         self._total_reward += reward
-        
-        return obs2, float(reward), bool(done), info or {}
+
+        if hasattr(self.env, "atualizacao"):
+            self.env.atualizacao()
+
+        return obs2, reward, done, info

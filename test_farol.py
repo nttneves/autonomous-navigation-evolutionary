@@ -4,7 +4,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 
 try:
-    from environment_farol import FarolEnv, make_farol_env_runner
+    from environments.environment_farol import FarolEnv, make_farol_env_runner
 except Exception as e:
     raise RuntimeError("Não consegui importar FarolEnv. Verifica environment_farol.py") from e
 
@@ -31,7 +31,7 @@ except Exception:
 
 # tenta importar Agente; se não existir, define a versão robusta aqui
 try:
-    from agent import Agente
+    from agents.agent import Agente
 except Exception:
     import numpy as _np
     class Agente:
