@@ -1,0 +1,71 @@
+import numpy as np
+from Agent import Agent
+from genetic import get_weights_vector, set_weights_vector
+from sensor.sensor_objeto import sensor_objeto # Exemplo de import
+from model import create_mlp
+
+
+class envolved_agent(Agent):
+    def __init__(self, id_agente, ambiente, dim_input_rn, sensores):
+        super().__init__(id_agente, sensores=sensores)
+        self.ambiente = ambiente # Referência ao ambiente
+        self.rede_neuronal = create_mlp(dim_input_rn)
+        # Inicializa o genoma com os pesos da RN inicial
+        self.genoma = get_weights_vector(self.rede_neuronal)
+
+
+
+    #exigido no enuciado:
+    @classmethod
+    def cria(cls, ficheiro_json: str):
+        import json
+        with open(ficheiro_json, "r") as f:
+            data = json.load(f)
+
+        return cls(
+            id_agente=data["id"],
+            ambiente=None,                  # o motor vai definir depois
+            dim_input_rn=data["dim_input"],
+            sensores=[]                     # sensores instalados depois
+        )
+    
+
+    def observacao(self, obs):
+        self.last_observation = obs
+
+    def set_genoma(self, genoma):
+        self.genoma = genoma
+        set_weights_vector(self.rede_neuronal, genoma)
+
+
+
+    ##precesão do agente e decisão da acção a tomar
+    def age(self) -> int:
+        #vetores dos sensores
+        vetores_obs=self.criar_vetor_observacao()
+
+        #decisão da acção a tomar pela RN
+        input=vetores_obs[np.newaxis, :]  # Adiciona dimensão de batch
+        output=self.rede_neuronal.predict(input, verbose=0)
+
+        #ação a tomar
+        acao=int(np.argmax(output))  # Acção com maior valor de saída
+        return acao
+
+
+    def criar_vetor_observacao(self) -> np.ndarray:
+        #cria o vetor de observação a partir dos sensores instalados
+        vetor_obs = []
+        for sensor in self.sensores:
+            obs_sensor = sensor.gerar_observacao(self.ambiente, self)
+            vetor_obs.extend(obs_sensor)
+        return np.array(vetor_obs)  
+
+
+
+    def avaliacaoEstadoAtual(self, recompensa: float):
+        self.regista_reward(recompensa)  
+        
+        
+
+    
