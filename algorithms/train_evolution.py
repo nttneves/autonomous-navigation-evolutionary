@@ -3,10 +3,14 @@ import numpy as np
 import random
 from simulator.simulator import Simulator
 from agents.evolved_agent import EvolvedAgent
-from algorithms.genetic import GeneticNoveltyTrainer, novelty_score
+from algorithms.genetic import GeneticNoveltyTrainer, novelty_score, set_weights_vector
 from algorithms.evaluate import evaluate_individual
-from model import create_mlp
+from model.model import create_mlp
 from environments.environment_farol import FarolEnv
+
+# -----------------------------------------------------
+# # AINDA NÃO FOI ALTERADO - VERSÃO ANTIGA
+# -----------------------------------------------------
 
 
 def train_evolution(
@@ -18,13 +22,6 @@ def train_evolution(
     max_steps=200,
     seed: int = 42,
 ):
-    """
-    Treino evolutivo com Novelty Search — versão robusta.
-
-    - Calcula input_dim automaticamente a partir das observações do agente
-      (sensores instalados no agente, NÃO no ambiente).
-    - Mantém o melhor indivíduo GLOBAL segundo novelty.
-    """
 
     random.seed(seed)
     np.random.seed(seed)
@@ -57,13 +54,10 @@ def train_evolution(
 
     except Exception as e:
         print("⚠️ Falha ao inferir input_dim automaticamente:", e)
-        inferred_input_dim = None
 
     if inferred_input_dim is None:
         if input_dim is None:
-            raise ValueError(
-                "Não foi possível inferir input_dim. Tens de o fornecer manualmente."
-            )
+            raise ValueError("Não foi possível inferir input_dim. Tens de o fornecer manualmente.")
         final_input_dim = int(input_dim)
         print(f"⚠️ A usar input_dim fornecido: {final_input_dim}")
     else:
@@ -98,16 +92,6 @@ def train_evolution(
 
         for idx, genome in enumerate(trainer.population):
 
-            # Criar modelo fresh
-            model = create_mlp(final_input_dim)
-
-            # Criar agente evolutivo
-            agent = EvolvedAgent(id=f"ag_gen{gen}", model=model)
-            agent.set_genoma(genome)
-
-            # Instalar sensores (obrigatório)
-            _instalar_sensores(agent)
-
             # Avaliar indivíduo
             bc = evaluate_individual(
                 weights=genome,
@@ -116,7 +100,7 @@ def train_evolution(
             )
             behaviours.append(np.asarray(bc, dtype=np.float32))
 
-        # Calcular novelty por indivíduo
+        # Calcular novelty
         nov_scores = []
         for b in behaviours:
             ns = novelty_score(b, behaviours, trainer.archive, k=10)
@@ -149,6 +133,28 @@ def train_evolution(
         best_global_genome = trainer.population[0]
         best_global_bc = behaviours[0]
 
+    # ==========================================================
+    # 4. MOSTRAR RESUMO FINAL (igual ao main original)
+    # ==========================================================
+
+    print("\nRESULTADO FINAL DO TESTE:")
+    print("Melhor genoma (primeiros 10 valores):", best_global_genome[:10])
+    print("Histórico novelty média:", history_mean)
+    print("Histórico novelty máxima:", history_max)
+
+    # ==========================================================
+    # 5. Perguntar se quer guardar o modelo
+    # ==========================================================
+
+    save = input("\n💾 Queres guardar o modelo final? (s/n): ").strip().lower()
+
+    if save == "s":
+        print("📦 A criar modelo final...")
+        model = create_mlp(final_input_dim)
+        set_weights_vector(model, best_global_genome)
+        model.save("best_agent_model.keras")
+        print("✅ Modelo guardado em best_agent_model.keras")
+
     return {
         "melhor_genoma": best_global_genome,
         "melhor_bc": best_global_bc,
@@ -164,10 +170,7 @@ def train_evolution(
 # INSTALAR SENSORES NO AGENTE
 # ==========================================================
 def _instalar_sensores(agent):
-    """
-    Instala os sensores padrão num agente.
-    O ambiente NÃO instala sensores.
-    """
+    """Instala os sensores padrão num agente."""
     from sensor.sensor_objeto import sensor_objeto
     from sensor.sensor_obstaculo import sensor_obstaculo
 

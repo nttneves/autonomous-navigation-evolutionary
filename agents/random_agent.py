@@ -17,7 +17,7 @@ class RandomAgent(Agent):
     def observacao(self, obs):
         self.last_observation = obs
 
-    def age(self) -> int:
+    def age(self, obs) -> int:
         acao = np.random.randint(self.num_acoes)
         self.last_action = acao
         return acao

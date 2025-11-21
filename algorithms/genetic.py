@@ -1,212 +1,194 @@
+#genetic.py
 import numpy as np
-import tensorflow as tf
 import random
+import tensorflow as tf
 
 
 def get_weights_vector(model):
-    """
-    Transform all weights of the TF model into a single flat vector.
-    """
+    """Flatten all TF model weights."""
     weights = model.get_weights()
     if len(weights) == 0:
-        raise ValueError("Model has no weights — check model_builder()")
-    flat = np.concatenate([w.flatten() for w in weights])
-    return flat
+        raise ValueError("Model has no weights.")
+    return np.concatenate([w.flatten() for w in weights])
 
 
-def set_weights_vector(model, flat_vector):
-    """
-    Load flattened weights back into the TF model.
-    """
+def set_weights_vector(model, flat):
+    """Load flattened weights into model."""
     shapes = [w.shape for w in model.get_weights()]
     new_weights = []
     idx = 0
 
-    for shape in shapes:
-        size = np.prod(shape)
-        new_w = flat_vector[idx:idx+size].reshape(shape)
-        new_weights.append(new_w)
+    for shp in shapes:
+        size = np.prod(shp)
+        block = flat[idx:idx+size].reshape(shp)
+        new_weights.append(block)
         idx += size
-
-    if idx != len(flat_vector):
-        raise ValueError("Flat vector does not match model weight shapes.")
 
     model.set_weights(new_weights)
 
 
-# NOVELTY SEARCH
 def euclidean(a, b):
     return np.linalg.norm(a - b)
 
 
-def novelty_score(behaviour, behaviour_set, archive, k=10):
-    """
-    Compute novelty relative to behaviours + archive.
-
-    behaviour: np.array (BC)
-    behaviour_set: list of np.array
-    archive: list of np.array
-    """
-
-    # Garantia de que BC é válido
-    if behaviour is None or not isinstance(behaviour, np.ndarray):
+def novelty_score(bc, population_bcs, archive, k=10):
+    if bc is None:
         return 0.0
 
-    all_behaviours = []
+    all_bcs = [x for x in population_bcs if x is not None] + \
+              [x for x in archive if x is not None]
 
-    # adicionar população
-    for b in behaviour_set:
-        if b is not None:
-            all_behaviours.append(b)
-
-    # adicionar archive
-    for b in archive:
-        if b is not None:
-            all_behaviours.append(b)
-
-    if len(all_behaviours) == 0:
+    if len(all_bcs) == 0:
         return 0.0
 
-    # distâncias ao comportamento atual
-    distances = [euclidean(behaviour, b) for b in all_behaviours]
-    distances.sort()
+    dists = [euclidean(bc, x) for x in all_bcs]
+    dists.sort()
 
-    k = min(k, len(distances))
-    return float(np.mean(distances[:k]))
-
-
-# GENETIC OPERATORS
-def mutate(weights, mutation_rate=0.05, mutation_strength=0.4):
-    """
-    Gaussian mutation: with probability mutation_rate, each gene receives noise.
-    """
-    new = weights.copy()
-    mask = np.random.rand(len(new)) < mutation_rate
-    noise = np.random.normal(0, mutation_strength, size=len(new))
-    new[mask] += noise[mask]
-    return new
+    k = min(k, len(dists))
+    return float(np.mean(dists[:k]))
 
 
-def crossover(parent1, parent2):
-    """
-    Uniform crossover: gene-by-gene choice.
-    (Melhor que one-point para redes neuronais.)
-    """
-    if len(parent1) != len(parent2):
-        raise ValueError("Parents must have same length.")
-    mask = np.random.rand(len(parent1)) < 0.5
-    child = np.where(mask, parent1, parent2)
-    return child
+def mutate_gaussian(weights, mutation_rate=0.05, sigma=0.3):
+    """Gaussian noise applied gene-wise."""
+    mask = np.random.rand(len(weights)) < mutation_rate
+    noise = np.random.normal(0, sigma, size=len(weights))
+    w = weights.copy()
+    w[mask] += noise[mask]
+    return w
 
 
-def select_parents(population, novelty_scores, num_parents):
-    """
-    Tournament selection based on novelty.
-    """
+def crossover_uniform(p1, p2):
+    """Gene-by-gene uniform crossover."""
+    mask = np.random.rand(len(p1)) < 0.5
+    return np.where(mask, p1, p2)
+
+
+def crossover_one_point(p1, p2):
+    """Single-cut crossover."""
+    point = np.random.randint(1, len(p1)-1)
+    return np.concatenate([p1[:point], p2[point:]])
+
+
+def crossover_blend(p1, p2, alpha=0.4):
+    """BLX-α crossover – excelente para pesos contínuos."""
+    low = np.minimum(p1, p2)
+    high = np.maximum(p1, p2)
+    diff = high - low
+
+    min_range = low - alpha * diff
+    max_range = high + alpha * diff
+
+    return np.random.uniform(min_range, max_range)
+
+
+def pick_crossover():
+    """Escolhe um operador aleatório com probabilidades equilibradas."""
+    ops = [
+        (crossover_uniform, 0.4),
+        (crossover_one_point, 0.2),
+        (crossover_blend, 0.4),
+    ]
+    r = random.random()
+    acc = 0.0
+    for op, p in ops:
+        acc += p
+        if r <= acc:
+            return op
+    return crossover_uniform
+
+
+def select_parents(population, novelty_scores, n_parents):
+    """Tournament selection + bias para diversidade."""
     parents = []
-    pop_size = len(population)
+    size = len(population)
 
-    for _ in range(num_parents):
-        i, j = np.random.randint(0, pop_size, 2)
+    for _ in range(n_parents):
+        i, j = np.random.randint(0, size, 2)
 
+        # desempate = indivíduo com mais variância nos pesos (mais diverso)
         if novelty_scores[i] > novelty_scores[j]:
             parents.append(population[i])
-        else:
+        elif novelty_scores[j] > novelty_scores[i]:
             parents.append(population[j])
+        else:
+            parents.append(
+                population[i] if np.std(population[i]) > np.std(population[j]) else population[j]
+            )
 
     return parents
 
 
 class GeneticNoveltyTrainer:
     """
-    The class managing population, novelty calculation and evolution.
+    Genetic Algorithm com Novelty Search + múltiplos crossovers,
+    elitismo e mutação gaussiana.
     """
 
-    def __init__(self, model_builder, pop_size=50, archive_prob=0.1):
-        """
-        model_builder: callable → returns a new untrained model
-        """
+    def __init__(self, model_builder, pop_size=50, archive_prob=0.1, elite_fraction=0.05):
         self.model_builder = model_builder
         self.pop_size = pop_size
         self.archive_prob = archive_prob
 
-        # archive para novelty
+        # elitismo
+        self.elite_n = max(1, int(pop_size * elite_fraction))
+
         self.archive = []
 
-        # Criar população inicial de vetores
+        # dimensão dos pesos
         temp_model = self.model_builder()
-        initial_dim = len(get_weights_vector(temp_model))
+        dim = len(get_weights_vector(temp_model))
 
-        self.population = []
-        for _ in range(pop_size):
-            # inicialização: normal é melhor que uniforme
-            w = np.random.normal(0, 1, size=initial_dim)
-            self.population.append(w)
-
-    # -----------------------------------------------------
-
-    def evaluate_population(self, env_runner):
-        """
-        Avalia cada indivíduo da população.
-        env_runner(model) → devolve um BC (np.array)
-
-        Devolve lista de BCs.
-        """
-
-        behaviours = []
-
-        for ind in self.population:
-            model = self.model_builder()
-            set_weights_vector(model, ind)
-
-            try:
-                bc = env_runner(model)
-            except Exception as e:
-                print("Erro ao avaliar indivíduo:", e)
-                bc = None
-
-            behaviours.append(bc)
-
-        return behaviours
+        # inicialização normal
+        self.population = [
+            np.random.normal(0, 1, size=dim) for _ in range(pop_size)
+        ]
 
     # -----------------------------------------------------
 
     def evolve(self, behaviours):
-        """
-        Realiza um passo evolutivo completo:
-        1. calcula novelty
-        2. seleciona pais
-        3. faz reprodução e mutação
-        4. atualiza archive
-        5. substitui população
-        """
+        """Um passo evolutivo completo."""
 
+        # novelty para cada indivíduo
         novelty_scores = [
-            novelty_score(b, behaviours, self.archive)
+            novelty_score(b, behaviours, self.archive, k=10)
             for b in behaviours
         ]
 
-        # seleção
+        # -----------------------------------------------------
+        # 1. ELITISMO — mantém os melhores intactos
+        # -----------------------------------------------------
+        idx_sorted = np.argsort(novelty_scores)[::-1]
+        elites = [self.population[i] for i in idx_sorted[:self.elite_n]]
+
+        # -----------------------------------------------------
+        # 2. Seleção de pais
+        # -----------------------------------------------------
         parents = select_parents(
             self.population,
             novelty_scores,
-            num_parents=self.pop_size
+            n_parents=self.pop_size
         )
 
-        # reprodução
-        new_population = []
-        for _ in range(self.pop_size):
+        # -----------------------------------------------------
+        # 3. Reprodução
+        # -----------------------------------------------------
+        new_population = elites.copy()
+
+        while len(new_population) < self.pop_size:
             p1, p2 = random.sample(parents, 2)
-            child = crossover(p1, p2)
-            child = mutate(child)
+            op = pick_crossover()
+            child = op(p1, p2)
+            child = mutate_gaussian(child)
             new_population.append(child)
 
-        # update archive ocasionalmente
+        # -----------------------------------------------------
+        # 4. Atualizar archive
+        # -----------------------------------------------------
         for bc in behaviours:
             if bc is not None and random.random() < self.archive_prob:
                 self.archive.append(bc)
 
         self.population = new_population
 
-        # devolver valores úteis para logging
+        # resultados de logging
         return float(np.mean(novelty_scores)), float(np.max(novelty_scores))

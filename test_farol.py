@@ -3,6 +3,10 @@ import numpy as np
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
+# -----------------------------------------------------
+# # AINDA NÃO FOI ALTERADO - VERSÃO ANTIGA
+# -----------------------------------------------------
+
 try:
     from environments.environment_farol import FarolEnv, make_farol_env_runner
 except Exception as e:

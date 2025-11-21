@@ -3,11 +3,14 @@ Funções de avaliação para uso pelo Algoritmo Genético
 no processo evolutivo dos agentes com rede neuronal.
 """
 
+# -----------------------------------------------------
+# # AINDA NÃO FOI ALTERADO - VERSÃO ANTIGA
+# -----------------------------------------------------
+
 # algorithms/evaluate.py
 import numpy as np
 from agents.evolved_agent import EvolvedAgent
 from algorithms.genetic import set_weights_vector
-from algorithms.train_evolution import _instalar_sensores
 
 
 def evaluate_individual(weights, create_model, simulator):

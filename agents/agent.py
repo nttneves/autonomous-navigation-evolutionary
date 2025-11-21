@@ -4,17 +4,17 @@ import queue
 import json
 import time
 
+# TODO:PARA LER O AGENTE DO FICHEIRO NÃO PRECISO DE PARAMENTROS APENAS O NOME DO FICHEIRO 
 class Agent(ABC):
-    def __init__(self, id: str, politica=None, sensores=None):
+    def __init__(self, id: str, politica=None, hasSensores=False):
         self.id = id
         self.politica = politica or None
-        self.sensores = sensores or {}
-        self.inbox = queue.Queue()
+        self.sensores = False
         self.last_observation = None
         self.last_action = None
         self.rewards = []
         self.ambiente = None
-        self.posicao = None
+        self.posicao = {}
 
     @classmethod
     def cria(cls, ficheiro_json: str):
@@ -34,16 +34,5 @@ class Agent(ABC):
     def avaliacaoEstadoAtual(self, recompensa: float):
         pass
 
-    def instala(self, nome: str, sensor):
-        self.sensores[nome] = sensor
-
-    def comunica(self, msg, de_agente=None):
-        self.inbox.put({"from": getattr(de_agente, "id", None),
-                        "message": msg,
-                        "timestamp": time.time()})
-
-    def envia(self, msg, para_agente):
-        para_agente.comunica(msg, self)
-
-    def regista_reward(self, r: float):
-        self.rewards.append(r)
+    def instala(self, sensor):
+        self.sensores = sensor
