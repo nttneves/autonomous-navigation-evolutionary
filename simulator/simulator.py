@@ -11,6 +11,7 @@ class Simulator:
         self.env = env
         self.max_steps = max_steps
         self.agentes = {}   # id → agente
+        self.renderer = None
 
     # ------------------------------------------------------------------
     # TODO: O FICHEIRO DEVE TER O AMBIENTE, TAMANHO, DIFICULDADE, MAX_STEPS, NUMERO DE AGENTES E CAMINHO PARA O FICHEIRO DE CRIAR AGENTES
@@ -66,28 +67,20 @@ class Simulator:
 
     # ------------------------------------------------------------------
     def run_episode(self, render=False):
-        """
-        Ciclo do episódio:
-        1. env.reset()
-        2. registar agentes no ambiente
-        3. loop:
-              obs = env.observacaoPara(a)
-              a.observacao(obs)
-              accao = a.age()
-              reward, done, info = env.agir()
-              a.avaliacaoEstadoAtual(reward)
-              env.atualizacao()
-        """
+
+        if render:
+            from environments.renderer_farol import FarolRenderer
+            self.renderer = FarolRenderer(self.env)
+
         self.env.reset()
 
-        # 2) posicionar cada agente num local inicial
+        # registar agentes
         start_x = 0
         start_y = self.env.tamanho[1] - 1
 
         for ag in self.listaAgentes():
             self.env.regista_agente(ag, (start_x, start_y))
 
-        # assumir 1 agente por agora (podemos estender depois)
         agent = self.listaAgentes()[0]
 
         traj = [self.env.get_posicao_agente(agent)]
@@ -99,14 +92,18 @@ class Simulator:
         obs = self.env.observacaoPara(agent)
         agent.observacao(obs)
 
-        # 3) ciclo
+        # loop
         while not done and steps < self.max_steps:
 
-            accao = agent.age()
+            # renderização
+            if render:
+                alive = self.renderer.draw(self.env.posicoes_agentes)
+                if not alive:
+                    break  # janela fechada pelo utilizador
 
+            accao = agent.age()
             reward, done, info = self.env.agir(accao, agent)
             agent.avaliacaoEstadoAtual(reward)
-            total_reward += reward
 
             obs = self.env.observacaoPara(agent)
             agent.observacao(obs)
@@ -117,8 +114,9 @@ class Simulator:
             self.env.atualizacao()
             steps += 1
 
-            if render:
-                print(f"Step {steps}: pos={pos}, reward={reward}")
+        if self.renderer:
+            self.renderer.close()
+            self.renderer = None
 
         final_pos = self.env.get_posicao_agente(agent)
         goal_pos = getattr(self.env, "farol_pos", None)
