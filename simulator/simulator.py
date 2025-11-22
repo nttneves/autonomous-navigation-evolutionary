@@ -1,125 +1,181 @@
-#simulator.py
+# simulator.py
 import json
-from environments.environment import Enviroment
 from environments.environment_farol import FarolEnv
+from agents.evolved_agent import EvolvedAgent
+from agents.random_agent import RandomAgent
 
 class Simulator:
 
   # TODO: PARA LER DO FICHEIRO O UNICO PARAMETRO QUE PRECISO É O FICHEIRO
-  def __init__(self, env, max_steps:int):
-    self.env = env
-    self.max_steps = max_steps
-    self.agentes = {}
+    def __init__(self, env, max_steps: int):
+        self.env = env
+        self.max_steps = max_steps
+        self.agentes = {}   # id → agente
 
+    # ------------------------------------------------------------------
+    # TODO: O FICHEIRO DEVE TER O AMBIENTE, TAMANHO, DIFICULDADE, MAX_STEPS, NUMERO DE AGENTES E CAMINHO PARA O FICHEIRO DE CRIAR AGENTES
+    @classmethod
+    def cria(cls, ficheiro_json: str):
+        """
+        Lê a configuração e constrói o simulador.
+        Espera um JSON com:
+        {
+            "ambiente": "farol",
+            "tamanho": [21,21],
+            "dificuldade": 0,
+            "max_steps": 200,
+            "agentes": ["ficheiro1.json", "ficheiro2.json"]
+        }
+        """
+        with open(ficheiro_json, "r") as f:
+            data = json.load(f)
 
-  # TODO: O FICHEIRO DEVE TER O AMBIENTE, TAMANHO, DIFICULDADE, MAX_STEPS, NUMERO DE AGENTES E CAMINHO PARA O FICHEIRO DE CRIAR AGENTES
-  def cria(cls, ficheiro_json: str):
-    with open(ficheiro_json, "r") as f:
-      data = json.load(f)
-    return cls(data["id"], data.get("politica"), data.get("sensores")) # ISTO TAMBÉM ESTÁ MAL 
-  
-  def run_episode(self, render=False):
-    """
-    Corre um único episódio seguindo exatamente o diagrama:
-      1. env.reset()
-      2. registar agente
-      3. loop de:
-        observacao → agente.age() → env.agir()
-        env.atualizacao()
-    """
+        # construir ambiente
+        if data["ambiente"] == "farol":
+            env = FarolEnv(
+                tamanho=tuple(data["tamanho"]),
+                dificuldade=data.get("dificuldade", 0),
+                max_steps=data.get("max_steps", 200)
+            )
+        else:
+            raise ValueError("Ambiente desconhecido")
 
-    self.env.reset()
+        sim = cls(env, data.get("max_steps", 200))
 
-    # 2) Posicionar o agente no canto inferior esquerdo
-    start_pos = (0, self.env.tamanho[1] - 1)
-    for agent in self.agentes:
-      self.env.regista_agente(agent, start_pos)
+        # carregar agentes
+        for ficheiro in data["agentes"]:
+            with open(ficheiro, "r") as fa:
+                a_data = json.load(fa)
 
-    # 3) Loop principal
-    traj = [start_pos]
-    total_reward = 0.0
-    steps = 0
-    done = False
+            tipo = a_data["tipo"]
 
-    obs = self.env.observacaoPara(agent)
+            if tipo == "random":
+                ag = RandomAgent.cria(ficheiro)
+            elif tipo == "evolved":
+                ag = EvolvedAgent.cria(ficheiro)
+            else:
+                raise ValueError("Tipo de agente desconhecido.")
 
-    while not done and steps < self.max_steps:
-      # 3.1) agente delibera ação
-      action = agent.age(obs)
+            sim.agentes[ag.id] = ag
 
-      # 3.2) ambiente reage
-      reward, done, info = self.env.agir(action, agent)
-      total_reward += reward
+        return sim
 
-      # 3.3) observar novo estado
-      obs = self.env.observacaoPara(agent)
+    # ------------------------------------------------------------------
+    def listaAgentes(self):
+        return list(self.agentes.values())
 
-      # 3.4) registrar posição
-      pos = self.env.get_posicao_agente(agent)
-      traj.append(pos)
+    # ------------------------------------------------------------------
+    def run_episode(self, render=False):
+        """
+        Ciclo do episódio:
+        1. env.reset()
+        2. registar agentes no ambiente
+        3. loop:
+              obs = env.observacaoPara(a)
+              a.observacao(obs)
+              accao = a.age()
+              reward, done, info = env.agir()
+              a.avaliacaoEstadoAtual(reward)
+              env.atualizacao()
+        """
+        self.env.reset()
 
-      # 3.5) ambiente avança o tempo
-      if hasattr(self.env, "atualizacao"):
+        # 2) posicionar cada agente num local inicial
+        start_x = 0
+        start_y = self.env.tamanho[1] - 1
+
+        for ag in self.listaAgentes():
+            self.env.regista_agente(ag, (start_x, start_y))
+
+        # assumir 1 agente por agora (podemos estender depois)
+        agent = self.listaAgentes()[0]
+
+        traj = [self.env.get_posicao_agente(agent)]
+        total_reward = 0.0
+        steps = 0
+        done = False
+
+        # primeira observação
+        obs = self.env.observacaoPara(agent)
+        agent.observacao(obs)
+
+        # 3) ciclo
+        while not done and steps < self.max_steps:
+
+            accao = agent.age()
+
+            reward, done, info = self.env.agir(accao, agent)
+            agent.avaliacaoEstadoAtual(reward)
+            total_reward += reward
+
+            obs = self.env.observacaoPara(agent)
+            agent.observacao(obs)
+
+            pos = self.env.get_posicao_agente(agent)
+            traj.append(pos)
+
+            self.env.atualizacao()
+            steps += 1
+
+            if render:
+                print(f"Step {steps}: pos={pos}, reward={reward}")
+
+        final_pos = self.env.get_posicao_agente(agent)
+        goal_pos = getattr(self.env, "farol_pos", None)
+        reached = (final_pos == goal_pos)
+
+        return {
+            "total_reward": float(total_reward),
+            "steps": steps,
+            "traj": traj,
+            "final_pos": final_pos,
+            "goal_pos": goal_pos,
+            "reached_goal": reached
+        }
+
+    # ------------------------------------------------------------------
+    def reset_env(self):
+        """Útil para visualizadores ou step-by-step."""
+        agent = self.listaAgentes()[0]
+
+        self.env.reset()
+        start = (0, self.env.tamanho[1] - 1)
+        self.env.regista_agente(agent, start)
+
+        obs = self.env.observacaoPara(agent)
+        agent.observacao(obs)
+
+        self._last_obs = obs
+        self._done = False
+        self._steps = 0
+        self._total_reward = 0.0
+
+        return obs
+
+    # ------------------------------------------------------------------
+    def step_once_for_visualiser(self, action=None):
+        """Executa 1 tick útil para UIs."""
+        agent = self.listaAgentes()[0]
+
+        if self._done:
+            self.reset_env()
+
+        obs = self._last_obs
+
+        if action is None:
+            action = agent.age()
+
+        reward, done, info = self.env.agir(action, agent)
+        agent.avaliacaoEstadoAtual(reward)
+
+        obs2 = self.env.observacaoPara(agent)
+        agent.observacao(obs2)
+
+        self._last_obs = obs2
+        self._done = done
+        self._steps += 1
+        self._total_reward += reward
+
         self.env.atualizacao()
 
-      steps += 1
-
-    # Posição final
-    final_pos = self.env.get_posicao_agente(agent)
-    goal_pos = getattr(self.env, "farol_pos", None)
-    reached = (goal_pos is not None and final_pos == goal_pos)
-
-    return {
-      "total_reward": float(total_reward),
-      "steps": steps,
-      "traj": traj,
-      "final_pos": final_pos,
-      "goal_pos": goal_pos,
-      "reached_goal": bool(reached)
-    }
-  
-
-  def reset_env(self):
-    self.env.reset()
-    start_pos = (0, self.env.tamanho[1] - 1)
-    self.env.regista_agente(self.agent, start_pos)
-    obs = self.env.observacaoPara(self.agent)
-    self._last_obs = obs
-    self._done = False
-    self._steps = 0
-    self._total_reward = 0.0
-    return obs
-  
-  def step_once_for_visualiser(self, action=None):
-    """
-    Executa 1 tick do simulador (útil para UI ou debug).
-    """
-    if self._done:
-      self.reset_env()
-
-    obs = self._last_obs
-
-    # escolher ação
-    if action is None:
-      action = self.agent.age(obs)
-
-    # aplicar ação
-    reward, done, info = self.env.agir(action, self.agent)
-
-    # nova observação
-    obs2 = self.env.observacaoPara(self.agent)
-
-    # atualizar estado interne
-    self._last_obs = obs2
-    self._done = bool(done)
-    self._steps += 1
-    self._total_reward += reward
-
-    if hasattr(self.env, "atualizacao"):
-      self.env.atualizacao()
-
-    return obs2, reward, done, info
-
-      
-
-
+        return obs2, reward, done, info

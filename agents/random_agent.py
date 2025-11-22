@@ -1,6 +1,6 @@
 # random_agent.py
 import numpy as np
-from agent import Agent
+from agents.agent import Agent
 
 class RandomAgent(Agent):
     def __init__(self, id: str, num_acoes: int):
@@ -12,12 +12,12 @@ class RandomAgent(Agent):
         import json
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
-        return cls(id=data["id"], num_acoes=data["num_acoes"])
+        return cls(id=data["id"],num_acoes=data["num_acoes"])
 
     def observacao(self, obs):
         self.last_observation = obs
 
-    def age(self, obs) -> int:
+    def age(self) -> int:
         acao = np.random.randint(self.num_acoes)
         self.last_action = acao
         return acao
