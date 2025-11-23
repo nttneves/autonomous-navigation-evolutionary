@@ -1,9 +1,10 @@
-# environment_farol.py
+# environments/environment_farol.py
 from typing import Tuple
 from environments.environment import Enviroment
 import random
 import numpy as np
 from agents.agent import Agent
+import math
 
 ACTION_TO_DELTA = {
     0: (0, -1),   # up
@@ -21,12 +22,13 @@ class FarolEnv(Enviroment):
     def __init__(self,
                  tamanho: Tuple[int, int] = (21, 21),
                  dificuldade: int = 0,
-                 max_steps: int = 200):
-
+                 max_steps: int = 200,
+                 range_max: int = 10):
         super().__init__(tamanho=tamanho, dificuldade=dificuldade)
 
         self.max_steps = int(max_steps)
         self.farol_pos = None
+        self.range_max = int(range_max)
 
         # criar mapa inicial
         self.mapa_estado = self.criar_mapa(dificuldade)
@@ -39,6 +41,9 @@ class FarolEnv(Enviroment):
 
     def reset(self):
         self.mapa_estado = self._initial_map.copy()
+        # garante que há farol
+        if self.farol_pos is None:
+            self.farol_pos = self.place_beacon()
         bx, by = self.farol_pos
         self.mapa_estado[by, bx] = FAROL
 
@@ -67,7 +72,7 @@ class FarolEnv(Enviroment):
         bx, by = self.farol_pos
         mapa[by, bx] = FAROL
 
-        # dificuldade futura: paredes aleatórias
+        # dificuldade futura: paredes aleatórias (por agora vazio)
         return mapa
 
     # ------------------------------------------------------------------
@@ -79,57 +84,110 @@ class FarolEnv(Enviroment):
         dx = bx - ax
         dy = by - ay
 
-        dist = np.sqrt(dx * dx + dy * dy)
+        dist = math.sqrt(dx * dx + dy * dy)
         if dist == 0:
-            return (0.0, 0.0)
+            return 0.0, 0.0, 0.0  # dx_norm, dy_norm, dist_norm
 
-        return (dx / dist, dy / dist)
+        w, h = self.tamanho
+        max_dist = math.sqrt((w - 1) ** 2 + (h - 1) ** 2)
+        return dx / dist, dy / dist, dist / max_dist
 
     # ------------------------------------------------------------------
 
-    def _safe_read(self, x, y):
-        """Devolve conteúdo do mapa ou parede se for fora dos limites."""
-        if 0 <= x < self.tamanho[0] and 0 <= y < self.tamanho[1]:
-            return self.mapa_estado[y, x]
-        return PAREDE
+    def _in_bounds(self, x, y):
+        w, h = self.tamanho
+        return 0 <= x < w and 0 <= y < h
+
+    # ------------------------------------------------------------------
+
+    def _ray_distance(self, x0, y0, dx, dy, max_range=None):
+        """
+        Avança passo a passo na direcção (dx,dy) (inteiros -1,0,1)
+        até encontrar uma parede ou atingir max_range.
+        Retorna distância normalizada [0..1], onde 1 = sem obstáculo até max_range.
+        """
+        if max_range is None:
+            max_range = self.range_max
+
+        x, y = x0, y0
+        dist = 0
+        for step in range(1, max_range + 1):
+            nx = x + dx * step
+            ny = y + dy * step
+            if not self._in_bounds(nx, ny):
+                # fora do mapa conta como obstáculo
+                return (step - 1) / float(max_range)
+            if self.mapa_estado[ny, nx] == PAREDE:
+                return (step - 1) / float(max_range)
+        return 1.0  # sem obstáculo dentro do alcance
+
+    # ------------------------------------------------------------------
+
+    def _radar_quadrants(self, agente: Agent):
+        """
+        Divide o espaço em 4 sectores centrados nas direções: front (up), right, back (down), left.
+        Retorna lista 4-long com 1.0 se o farol estiver nesse sector, 0 caso contrário.
+        Critério: compara abs(dx) vs abs(dy) e o sinal de dx/dy.
+        """
+        ax, ay = agente.posicao
+        bx, by = self.farol_pos
+        dx = bx - ax
+        dy = by - ay
+
+        # se a distância for zero, marca front por convenção
+        if dx == 0 and dy == 0:
+            return [0.0, 0.0, 0.0, 0.0]
+
+        # decide sector
+        # front: dy < 0 and abs(dy) >= abs(dx)
+        # right: dx > 0 and abs(dx) > abs(dy)
+        # back: dy > 0 and abs(dy) >= abs(dx)
+        # left: dx < 0 and abs(dx) > abs(dy)
+        if abs(dy) >= abs(dx):
+            if dy < 0:
+                return [1.0, 0.0, 0.0, 0.0]  # front
+            else:
+                return [0.0, 0.0, 1.0, 0.0]  # back
+        else:
+            if dx > 0:
+                return [0.0, 1.0, 0.0, 0.0]  # right
+            else:
+                return [0.0, 0.0, 0.0, 1.0]  # left
 
     # ------------------------------------------------------------------
 
     def observacaoPara(self, agente: Agent):
-      ax, ay = agente.posicao
-      dx, dy = self.posicao_relativa_farol(agente)
+        """
+        Observação com 10 inputs:
+         - 6 rangefinders: up, right, down, left, up-right, up-left  (valores normalizados 0..1)
+         - 4 radar sectors: front, right, back, left  (one-hot-like 0/1)
+        """
+        ax, ay = agente.posicao
 
-      # 8 direções em ordem consistente (importante para rede neuronal)
-      leituras = [
-          (ax,     ay - 1),  # N
-          (ax + 1, ay),      # E
-          (ax,     ay + 1),  # S
-          (ax - 1, ay),      # W
-          (ax + 1, ay - 1),  # NE
-          (ax + 1, ay + 1),  # SE
-          (ax - 1, ay + 1),  # SW
-          (ax - 1, ay - 1),  # NW
-      ]
+        # Rangefinder directions (relative to map axes)
+        # ord: up, right, down, left, up-right, up-left
+        rf_dirs = [
+            (0, -1),  # up
+            (1, 0),   # right
+            (0, 1),   # down
+            (-1, 0),  # left
+            (1, -1),  # up-right
+            (-1, -1), # up-left
+        ]
 
-      viz = []
+        ranges = []
+        for (dx, dy) in rf_dirs:
+            val = self._ray_distance(ax, ay, dx, dy, max_range=self.range_max)
+            ranges.append(float(val))
 
-      if agente.sensores:
-          # vê tudo (8 direções)
-          for (x, y) in leituras:
-              viz.append(self._safe_read(x, y))
-      else:
-          # vê só 4 direções (N,E,S,W)
-          for i, (x, y) in enumerate(leituras):
-              if i < 4:
-                  viz.append(self._safe_read(x, y))
-              else:
-                  viz.append(-1)   # diagonais invisíveis
+        radar = self._radar_quadrants(agente)
 
-      # formato final
-      return {
-          "sensores": viz,       # lista de 8 números
-          "dir_farol": (dx, dy)  # tupla de 2 floats normalizados
-      }
+        # junta e devolve
+        obs = {
+            "ranges": ranges,   # 6 floats
+            "radar": radar      # 4 floats
+        }
+        return obs
 
     # ------------------------------------------------------------------
 
@@ -158,6 +216,7 @@ class FarolEnv(Enviroment):
             nx, ny = x, y
         else:
             self.posicoes_agentes[agente.id] = (nx, ny)
+            agente.posicao = (nx, ny)
 
         # chegou ao farol
         if (nx, ny) == self.farol_pos:
@@ -166,12 +225,6 @@ class FarolEnv(Enviroment):
             info["reached_beacon"] = True
 
         return reward, done, info
-
-    # ------------------------------------------------------------------
-
-    def _in_bounds(self, x, y):
-        w, h = self.tamanho
-        return 0 <= x < w and 0 <= y < h
 
     # ------------------------------------------------------------------
 

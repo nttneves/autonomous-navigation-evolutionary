@@ -5,28 +5,17 @@ from agents.evolved_agent import EvolvedAgent
 from agents.random_agent import RandomAgent
 
 class Simulator:
-
   # TODO: PARA LER DO FICHEIRO O UNICO PARAMETRO QUE PRECISO É O FICHEIRO
     def __init__(self, env, max_steps: int):
         self.env = env
         self.max_steps = max_steps
         self.agentes = {}   # id → agente
+        self.renderer = None
 
     # ------------------------------------------------------------------
     # TODO: O FICHEIRO DEVE TER O AMBIENTE, TAMANHO, DIFICULDADE, MAX_STEPS, NUMERO DE AGENTES E CAMINHO PARA O FICHEIRO DE CRIAR AGENTES
     @classmethod
     def cria(cls, ficheiro_json: str):
-        """
-        Lê a configuração e constrói o simulador.
-        Espera um JSON com:
-        {
-            "ambiente": "farol",
-            "tamanho": [21,21],
-            "dificuldade": 0,
-            "max_steps": 200,
-            "agentes": ["ficheiro1.json", "ficheiro2.json"]
-        }
-        """
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
 
@@ -66,28 +55,23 @@ class Simulator:
 
     # ------------------------------------------------------------------
     def run_episode(self, render=False):
-        """
-        Ciclo do episódio:
-        1. env.reset()
-        2. registar agentes no ambiente
-        3. loop:
-              obs = env.observacaoPara(a)
-              a.observacao(obs)
-              accao = a.age()
-              reward, done, info = env.agir()
-              a.avaliacaoEstadoAtual(reward)
-              env.atualizacao()
-        """
+
+        # iniciar renderer se necessário
+        if render:
+            from environments.renderer_farol import FarolRenderer
+            self.renderer = FarolRenderer(self.env)
+
+        # reset do ambiente
         self.env.reset()
 
-        # 2) posicionar cada agente num local inicial
-        start_x = 0
-        start_y = self.env.tamanho[1] - 1
+        # posição inicial
+        start_pos = (0, self.env.tamanho[1] - 1)
 
-        for ag in self.listaAgentes():
-            self.env.regista_agente(ag, (start_x, start_y))
+        # registar agentes corretamente
+        for ag in self.agentes.values():
+            self.env.regista_agente(ag, start_pos)
+            ag.posicao = start_pos  # CRÍTICO: manter consistência interna
 
-        # assumir 1 agente por agora (podemos estender depois)
         agent = self.listaAgentes()[0]
 
         traj = [self.env.get_posicao_agente(agent)]
@@ -99,26 +83,41 @@ class Simulator:
         obs = self.env.observacaoPara(agent)
         agent.observacao(obs)
 
-        # 3) ciclo
+        # loop principal
         while not done and steps < self.max_steps:
 
+            # desenhar no pygame
+            if render:
+                alive = self.renderer.draw(self.env.posicoes_agentes)
+                if not alive:
+                    break
+
+            # agente decide
             accao = agent.age()
 
+            # ambiente reage
             reward, done, info = self.env.agir(accao, agent)
-            agent.avaliacaoEstadoAtual(reward)
             total_reward += reward
+            agent.avaliacaoEstadoAtual(reward)
 
+            # nova observação
             obs = self.env.observacaoPara(agent)
             agent.observacao(obs)
 
+            # guardar trajetória
             pos = self.env.get_posicao_agente(agent)
+            agent.posicao = pos   # CRÍTICO: atualizar posição interna
             traj.append(pos)
 
+            # atualizar ambiente
             self.env.atualizacao()
+
             steps += 1
 
-            if render:
-                print(f"Step {steps}: pos={pos}, reward={reward}")
+        # fechar janela se aberta
+        if self.renderer:
+            self.renderer.close()
+            self.renderer = None
 
         final_pos = self.env.get_posicao_agente(agent)
         goal_pos = getattr(self.env, "farol_pos", None)
@@ -135,12 +134,12 @@ class Simulator:
 
     # ------------------------------------------------------------------
     def reset_env(self):
-        """Útil para visualizadores ou step-by-step."""
         agent = self.listaAgentes()[0]
 
         self.env.reset()
         start = (0, self.env.tamanho[1] - 1)
         self.env.regista_agente(agent, start)
+        agent.posicao = start
 
         obs = self.env.observacaoPara(agent)
         agent.observacao(obs)
@@ -154,7 +153,6 @@ class Simulator:
 
     # ------------------------------------------------------------------
     def step_once_for_visualiser(self, action=None):
-        """Executa 1 tick útil para UIs."""
         agent = self.listaAgentes()[0]
 
         if self._done:
