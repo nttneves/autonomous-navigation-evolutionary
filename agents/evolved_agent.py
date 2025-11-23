@@ -8,11 +8,12 @@ class EvolvedAgent(Agent):
 
   def __init__(self, id: str, model=None):
         super().__init__(id)
+        self.input_dim = 10
 
         if model is not None:
             self.rede_neuronal = model
         else:
-            self.rede_neuronal = create_mlp()
+            self.rede_neuronal = create_mlp(input_dim= self.input_dim)
 
         self.genoma = None
         self.last_action = None
@@ -50,10 +51,15 @@ class EvolvedAgent(Agent):
     """
     vetor = self._vetorizar_obs(self.last_observation)
 
-    out = self.rede_neuronal(
-      np.array([vetor], dtype=np.float32),
-      training=False
-    )
+    # out = self.rede_neuronal(
+    #   np.array([vetor], dtype=np.float32),
+    #   training=False
+    # )
+
+    # RNN precisa de (batch=1, timesteps=1, features=input_dim)
+    inp = np.array(vetor, dtype=np.float32).reshape(1, 1, -1)
+
+    out = self.rede_neuronal(inp, training=False)
 
     acao = int(np.argmax(out.numpy()))
     self.last_action = acao

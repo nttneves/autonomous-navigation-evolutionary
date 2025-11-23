@@ -48,7 +48,7 @@ def novelty_score(bc, population_bcs, archive, k=10):
     return float(np.mean(dists[:k]))
 
 
-def mutate_gaussian(weights, mutation_rate=0.05, sigma=0.3):
+def mutate_gaussian(weights, mutation_rate=0.03, sigma=0.1): # sigma=0.3
     """Gaussian noise applied gene-wise."""
     mask = np.random.rand(len(weights)) < mutation_rate
     noise = np.random.normal(0, sigma, size=len(weights))
