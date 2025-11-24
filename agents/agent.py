@@ -5,7 +5,7 @@ import json
 # TODO:PARA LER O AGENTE DO FICHEIRO NÃO PRECISO DE PARAMENTROS APENAS O NOME DO FICHEIRO 
 class Agent(ABC):
 
-    def __init__(self, id: str, politica=None, hasSensores=True):
+    def __init__(self, id: str, politica: str=None, hasSensores=True):
         self.id = id
         self.politica = politica
         self.sensores = bool(hasSensores)
@@ -41,7 +41,7 @@ class Agent(ABC):
         """Recebe feedback/reward do ambiente."""
         pass
 
-    def instala(self, sensor):
+    def instala(self, sensor: bool):
         """Associa sensores ao agente."""
         self.sensores = sensor
 

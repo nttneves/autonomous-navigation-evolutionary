@@ -7,6 +7,7 @@ from model.model import create_rnn
 class EvolvedAgent(Agent):
     def __init__(self, id: str, model=None, dim_input_rn: int = 10):
         super().__init__(id)
+        self.politica = "evolved"
         if model is not None:
             self.rede_neuronal = model
         else:

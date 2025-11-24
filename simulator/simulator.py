@@ -2,7 +2,7 @@
 import json
 from environments.environment_farol import FarolEnv
 from agents.evolved_agent import EvolvedAgent
-from agents.random_agent import RandomAgent
+from agents.fixed_policy_agent import FixedPolicyAgent
 
 class Simulator:
   # TODO: PARA LER DO FICHEIRO O UNICO PARAMETRO QUE PRECISO É O FICHEIRO
@@ -38,8 +38,8 @@ class Simulator:
 
             tipo = a_data["tipo"]
 
-            if tipo == "random":
-                ag = RandomAgent.cria(ficheiro)
+            if tipo == "fixed":
+                ag = FixedPolicyAgent.cria(ficheiro)
             elif tipo == "evolved":
                 ag = EvolvedAgent.cria(ficheiro)
             else:

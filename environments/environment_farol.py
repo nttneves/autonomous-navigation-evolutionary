@@ -23,7 +23,7 @@ class FarolEnv(Enviroment):
                  tamanho: Tuple[int, int] = (21, 21),
                  dificuldade: int = 0,
                  max_steps: int = 200,
-                 range_max: int = 10):
+                 range_max: int = 5):
         super().__init__(tamanho=tamanho, dificuldade=dificuldade)
 
         self.max_steps = int(max_steps)
@@ -72,25 +72,44 @@ class FarolEnv(Enviroment):
         bx, by = self.farol_pos
         mapa[by, bx] = FAROL
 
-        # dificuldade futura: paredes aleatórias (por agora vazio)
+        # ---------------------------------------------------
+        # Número de paredes aleatórias depende da dificuldade
+        # dificuldade = 0 → sem paredes
+        # dificuldade = 1 → 2% do mapa
+        # dificuldade = 5 → 10% do mapa
+        # ---------------------------------------------------
+        if dificuldade < 0:
+            dificuldade = 0
+
+        target_density = min(0.02 * dificuldade, 0.25)
+        num_paredes = int((w * h) * target_density)
+
+        forbidden = {
+            (0, h-1), (1, h-1),
+            (0, h-2), (1, h-2)
+        }
+
+        count = 0
+        tentativas = 0
+        limite = num_paredes * 10
+
+        while count < num_paredes and tentativas < limite:
+            tentativas += 1
+
+            x = random.randint(1, w-2)
+            y = random.randint(1, h-2)
+
+            if (x, y) in forbidden:
+                continue
+
+            if (x, y) == self.farol_pos:
+                continue
+
+            if mapa[y, x] == VAZIO:
+                mapa[y, x] = PAREDE
+                count += 1
+
         return mapa
-
-    # ------------------------------------------------------------------
-
-    def posicao_relativa_farol(self, agente: Agent):
-        ax, ay = agente.posicao
-        bx, by = self.farol_pos
-
-        dx = bx - ax
-        dy = by - ay
-
-        dist = math.sqrt(dx * dx + dy * dy)
-        if dist == 0:
-            return 0.0, 0.0, 0.0  # dx_norm, dy_norm, dist_norm
-
-        w, h = self.tamanho
-        max_dist = math.sqrt((w - 1) ** 2 + (h - 1) ** 2)
-        return dx / dist, dy / dist, dist / max_dist
 
     # ------------------------------------------------------------------
 
@@ -125,7 +144,7 @@ class FarolEnv(Enviroment):
 
     def _radar_quadrants(self, agente: Agent):
         """
-        Divide o espaço em 4 sectores centrados nas direções: front (up), right, back (down), left.
+        Divide o espaço em 4 setores centrados nas direções: front (up), right, back (down), left.
         Retorna lista 4-long com 1.0 se o farol estiver nesse sector, 0 caso contrário.
         Critério: compara abs(dx) vs abs(dy) e o sinal de dx/dy.
         """
@@ -159,35 +178,37 @@ class FarolEnv(Enviroment):
     def observacaoPara(self, agente: Agent):
         """
         Observação com 10 inputs:
-         - 6 rangefinders: up, right, down, left, up-right, up-left  (valores normalizados 0..1)
-         - 4 radar sectors: front, right, back, left  (one-hot-like 0/1)
+        - 6 rangefinders: up, right, down, left, up-right, up-left (0..1)
+        - 4 radar sectors: front, right, back, left (0/1)
         """
         ax, ay = agente.posicao
 
+        if agente.sensores == True:
+            max_r = self.range_max    
+        else:
+            max_r = 1                 
+
         # Rangefinder directions (relative to map axes)
-        # ord: up, right, down, left, up-right, up-left
         rf_dirs = [
-            (0, -1),  # up
-            (1, 0),   # right
-            (0, 1),   # down
-            (-1, 0),  # left
-            (1, -1),  # up-right
-            (-1, -1), # up-left
+            (0, -1),   # up
+            (1, 0),    # right
+            (0, 1),    # down
+            (-1, 0),   # left
+            (1, -1),   # up-right
+            (-1, -1),  # up-left
         ]
 
         ranges = []
         for (dx, dy) in rf_dirs:
-            val = self._ray_distance(ax, ay, dx, dy, max_range=self.range_max)
+            val = self._ray_distance(ax, ay, dx, dy, max_range=max_r)
             ranges.append(float(val))
 
         radar = self._radar_quadrants(agente)
 
-        # junta e devolve
-        obs = {
-            "ranges": ranges,   # 6 floats
-            "radar": radar      # 4 floats
+        return {
+            "ranges": ranges,   # 6 floats normalizados
+            "radar": radar      # 4 floats one-hot
         }
-        return obs
 
     # ------------------------------------------------------------------
 

@@ -1,9 +1,9 @@
 from environments.environment_farol import FarolEnv
-from agents.random_agent import RandomAgent
+from agents.fixed_policy_agent import FixedPolicyAgent
 from simulator.simulator import Simulator
 
 env = FarolEnv()
-agent = RandomAgent(id="rnd", num_acoes=4)
+agent = FixedPolicyAgent(id="rnd")
 sim = Simulator(env, max_steps=200)
 sim.agentes = {"rnd": agent}
 
