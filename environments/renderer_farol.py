@@ -1,4 +1,3 @@
-# renderer_farol.py
 import pygame
 from environments.environment import Enviroment
 
@@ -7,15 +6,20 @@ PAREDE = 1
 FAROL = 2
 
 class FarolRenderer:
-    def __init__(self, env: Enviroment, cell_size=25):
+    def __init__(self, env: Enviroment, window_size=600):
         pygame.init()
 
         self.env = env
-        self.cell_size = cell_size
 
         w, h = env.tamanho
-        self.width = w * cell_size
-        self.height = h * cell_size
+
+        # janela fixa (900x900 por default)
+        self.window_size = window_size
+        self.cell_size = max(1, window_size // max(w, h))
+
+        # cria janela fixa
+        self.width = w * self.cell_size
+        self.height = h * self.cell_size
 
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Farol Environment")
@@ -47,6 +51,7 @@ class FarolRenderer:
         self.screen.fill((0, 0, 0))
 
         h, w = self.env.mapa_estado.shape
+        cs = self.cell_size
 
         for y in range(h):
             for x in range(w):
@@ -57,10 +62,10 @@ class FarolRenderer:
                     self.screen,
                     color,
                     pygame.Rect(
-                        x * self.cell_size,
-                        y * self.cell_size,
-                        self.cell_size,
-                        self.cell_size
+                        x * cs,
+                        y * cs,
+                        cs,
+                        cs
                     )
                 )
 
@@ -71,15 +76,15 @@ class FarolRenderer:
                 self.screen,
                 self.colors["agente"],
                 pygame.Rect(
-                    ax * self.cell_size,
-                    ay * self.cell_size,
-                    self.cell_size,
-                    self.cell_size
+                    ax * cs,
+                    ay * cs,
+                    cs,
+                    cs
                 )
             )
 
         pygame.display.flip()
-        self.clock.tick(10)  # 10 FPS = 1 movimento a cada 100ms
+        self.clock.tick(10)  # 10 FPS
 
         return True
 

@@ -129,12 +129,10 @@ class FarolEnv(Enviroment):
             max_range = self.range_max
 
         x, y = x0, y0
-        dist = 0
         for step in range(1, max_range + 1):
             nx = x + dx * step
             ny = y + dy * step
             if not self._in_bounds(nx, ny):
-                # fora do mapa conta como obstáculo
                 return (step - 1) / float(max_range)
             if self.mapa_estado[ny, nx] == PAREDE:
                 return (step - 1) / float(max_range)
