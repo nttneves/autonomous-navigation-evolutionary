@@ -1,4 +1,4 @@
-# environments/environment_farol.py
+# environments/environment_maze.py
 from typing import Tuple
 from environments.environment import Enviroment
 import random
@@ -67,47 +67,45 @@ class MazeEnv(Enviroment):
     def criar_mapa(self, dificuldade=0):
         w, h = self.tamanho
 
+        # garantir impar
         if w % 2 == 0: w -= 1
         if h % 2 == 0: h -= 1
-        maze = np.full((h, w),fill_value=1, dtype=int)
-    
 
-        def crave(x,y):
-            directions = [(2,0),(-2,0),(0,2),(0,-2)]
+        maze = np.full((h, w), fill_value=PAREDE, dtype=int)
+
+        # DFS
+        def crave(x, y):
+            directions = [(2,0), (-2,0), (0,2), (0,-2)]
             random.shuffle(directions)
-            for dx,dy in directions:
+            for dx, dy in directions:
                 nx, ny = x + dx, y + dy
-                if 1 <= nx < w-1 and 1 <= ny < h-1 and maze[ny, nx] == 1:
-                    
-                    maze[ny, nx] = 0          # abre espaço
-                    maze[y + dy//2][x + dx//2] = 0  # abre parede intermédia
+                if 1 <= nx < w-1 and 1 <= ny < h-1 and maze[ny, nx] == PAREDE:
+                    maze[ny, nx] = VAZIO
+                    maze[y + dy//2, x + dx//2] = VAZIO
                     crave(nx, ny)
 
-        
-        
-        crave(1,1)
+        # start
+        maze[1,1] = VAZIO
+        crave(1, 1)
 
+        # atualizar tamanho real
+        self.tamanho = (w, h)
+
+        # saída
         self.saida_pos = self.place_exit()
         bx, by = self.saida_pos
         maze[by, bx] = SAIDA
-        
-       
-        
-        # ponto inicial SEMPRE aberto
-        maze[h-1,0] = 0
-        maze[h-1,1] = 0
-        maze[h-2,0] = 0
-        maze[h-2,1] = 0
 
-        bx, by = self.saida_pos
+        # spawn
+        sx, sy = 0, h-1
+        for dx in (0,1):
+            for dy in (0,1):
+                maze[sy-dy, sx+dx] = VAZIO
 
-        # abrir um caminho até à saída, caso esteja rodeada
-        if by + 1 < h:
-            maze[by+1, bx] = 0
-            if by + 2 < h:
-                maze[by+2, bx] = 0
-
-
+        # abrir caminho se saída estiver bloqueada
+        neighbours = [(bx, by+1), (bx+1, by), (bx-1, by)]
+        if all(0 <= nx < w and 0 <= ny < h and maze[ny,nx] == PAREDE for nx,ny in neighbours):
+            maze[by+1, bx] = VAZIO
 
         return maze
 

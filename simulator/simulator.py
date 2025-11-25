@@ -1,12 +1,14 @@
 # simulator.py
 import json
+from environments.enviromnent_maze import MazeEnv
+from environments.environment import Enviroment
 from environments.environment_farol import FarolEnv
 from agents.evolved_agent import EvolvedAgent
 from agents.fixed_policy_agent import FixedPolicyAgent
 
 class Simulator:
   # TODO: PARA LER DO FICHEIRO O UNICO PARAMETRO QUE PRECISO É O FICHEIRO
-    def __init__(self, env, max_steps: int):
+    def __init__(self, env: Enviroment, max_steps: int):
         self.env = env
         self.max_steps = max_steps
         self.agentes = {}   # id → agente
@@ -58,8 +60,8 @@ class Simulator:
 
         # iniciar renderer se necessário
         if render:
-            from environments.renderer_farol import FarolRenderer
-            self.renderer = FarolRenderer(self.env)
+            from environments.renderer import EnvRenderer
+            self.renderer = EnvRenderer(self.env)
 
         # reset do ambiente
         self.env.reset()
@@ -120,8 +122,14 @@ class Simulator:
             self.renderer = None
 
         final_pos = self.env.get_posicao_agente(agent)
-        goal_pos = getattr(self.env, "farol_pos", None)
-        reached = (final_pos == goal_pos)
+        # procurar atributo que representa a meta
+        goal_pos = None
+        if hasattr(self.env, "farol_pos"):
+            goal_pos = self.env.farol_pos
+        elif hasattr(self.env, "saida_pos"):
+            goal_pos = self.env.saida_pos
+
+        reached = (goal_pos is not None and final_pos == goal_pos)
 
         return {
             "total_reward": float(total_reward),

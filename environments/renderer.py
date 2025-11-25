@@ -3,9 +3,9 @@ from environments.environment import Enviroment
 
 VAZIO = 0
 PAREDE = 1
-FAROL = 2
+OBJETIVO = 2
 
-class FarolRenderer:
+class EnvRenderer:
     def __init__(self, env: Enviroment, window_size=600):
         pygame.init()
 
@@ -22,7 +22,7 @@ class FarolRenderer:
         self.height = h * self.cell_size
 
         self.screen = pygame.display.set_mode((self.width, self.height))
-        pygame.display.set_caption("Farol Environment")
+        pygame.display.set_caption("Environment")
 
         self.clock = pygame.time.Clock()
         self.running = True
@@ -31,7 +31,7 @@ class FarolRenderer:
         self.colors = {
             VAZIO: (230, 230, 230),   # cinza claro
             PAREDE: (50, 50, 50),     # cinza escuro
-            FAROL: (255, 220, 0),     # amarelo farol
+            OBJETIVO: (255, 220, 0),     # amarelo farol
             "agente": (0, 150, 255)   # azul agente
         }
 

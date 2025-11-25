@@ -12,5 +12,5 @@ trainer = EvolutionTrainer(model_builder=lambda: create_rnn(input_dim=10),
 history = trainer.train(env_factory=make_env, max_steps=200, generations=20, episodes_per_individual=3, alpha=0.7, verbose=True)
 
 # re-avalia e salva champion (só se a re-avaliação for razoável)
-ok, score = trainer.save_champion("best_agent_model.keras", make_env, max_steps=200, n_eval=12, threshold=-0.5)
+ok, score = trainer.save_champion("best_agent_farol.keras", make_env, max_steps=200, n_eval=12, threshold=-0.5)
 print("Champion saved:", ok, "score:", score)

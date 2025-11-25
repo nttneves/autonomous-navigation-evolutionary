@@ -4,17 +4,16 @@ from agents.agent import Agent
 
 class FixedPolicyAgent(Agent):
     """
-    Agente com política fixa baseada nos sensores:
-      - Radar diz a direção do alvo (front/right/back/left)
-      - Rangefinders dizem se está livre
-      - Política: tenta ir na direção do alvo; se bloqueado, tenta virar.
+    Política fixa híbrida:
+      - Se paredes estão próximas -> segue parede (right-hand rule)
+      - Se não há paredes -> usa radar para aproximar-se do alvo
     """
 
     def __init__(self, id: str):
         super().__init__(id)
         self.politica = "fixed"
         self.last_observation = None
-        self.last_action = None
+        self.last_action = 0
 
     @classmethod
     def cria(cls, ficheiro_json: str):
@@ -26,71 +25,73 @@ class FixedPolicyAgent(Agent):
     def observacao(self, obs):
         self.last_observation = obs
 
-    def _direcao_alvo(self):
-        radar = self.last_observation["radar"]  # [front, right, back, left]
-        # retorna índice da direção dominante
-        return int(np.argmax(radar))   # 0=front,1=right,2=back,3=left
+    def _livre(self, d):
+        """range > 0 -> espaço livre"""
+        return self.last_observation["ranges"][d] > 0.0
 
-    def _livre(self, direcao):
-        """
-        rangefinders (obs["ranges"]):
-            0=up,1=right,2=down,3=left,4=up-right,5=up-left
-        Para política principal só usamos 0..3.
-        range > 0 significa espaço livre até 10 passos de distância.
-        """
+    def _paredes_proximas(self):
+        """Se algum rangefinder cardinal (up/right/down/left) < 1 → há paredes próximas."""
         ranges = self.last_observation["ranges"]
-        return ranges[direcao] > 0.0
+        return min(ranges[0:4]) < 1.0
+
+    def _right_hand_rule(self):
+        """Implementa wall-following (follow right wall)."""
+        d = self.last_action
+        direita = (d + 1) % 4
+        esquerda = (d - 1) % 4
+        tras = (d + 2) % 4
+
+        # 1) tenta virar à direita
+        if self._livre(direita):
+            return direita
+
+        # 2) se não, tenta frente
+        if self._livre(d):
+            return d
+
+        # 3) se não, tenta esquerda
+        if self._livre(esquerda):
+            return esquerda
+
+        # 4) fallback: trás
+        return tras
+
+    def _radar_direction(self):
+        """Front=0, right=1, back=2, left=3."""
+        return int(np.argmax(self.last_observation["radar"]))
 
     def age(self) -> int:
-        """
-        0=up, 1=right, 2=down, 3=left
-        Política:
-           1. tenta direção do alvo
-           2. senão tenta virar à direita
-           3. senão tenta virar à esquerda
-           4. para baixo
-           5.fallback: tenta inversa
-        """
         if self.last_observation is None:
             self.last_action = 0
             return 0
 
-        # 1 — direção desejada (0..3)
-        alvo = self._direcao_alvo()
-
-        # mapa para ações compatíveis:
-        # radar: front=0 (up), right=1, back=2 (down), left=3
-        desired = alvo
-
         ranges = self.last_observation["ranges"]
-        if self.last_action is not None and ranges[self.last_action] > 0.0:
-            return self.last_action
-        # 1) tentar direção principal
+
+        # Número de paredes próximas em direções cardinais
+        num_paredes = sum(1 for v in ranges[0:4] if v < 1.0)
+
+        # ---------------------------------------------------
+        # 1) Corredor / zona apertada → wall-following
+        # ---------------------------------------------------
+        if num_paredes >= 2:
+            a = self._right_hand_rule()
+            self.last_action = a
+            return a
+
+        # ---------------------------------------------------
+        # 2) Espaço aberto → segue radar
+        # ---------------------------------------------------
+        desired = self._radar_direction()
+
+        # Se a direção do radar está livre → usa
         if self._livre(desired):
             self.last_action = desired
             return desired
-       
-        
-        
-        
-        # 2) tentar virar à direita
-        direita = (desired + 1) % 4
-        if self._livre(direita):
-            self.last_action = direita
-            return direita
 
-        # 3) tentar virar à esquerda
-        esquerda = (desired - 1) % 4
-        if self._livre(esquerda):
-            self.last_action = esquerda
-            return esquerda
-        
-
-        # 4) fallback: inversa
-        inverso = (desired + 2) % 4
-        self.last_action = inverso
-        return inverso
-    
+        # Senão → fallback para wall-following
+        a = self._right_hand_rule()
+        self.last_action = a
+        return a
 
     def avaliacaoEstadoAtual(self, recompensa: float):
         self.regista_reward(recompensa)

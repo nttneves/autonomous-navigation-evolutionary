@@ -14,7 +14,7 @@ def load_model_and_agent(path, input_dim=10):
     return agent
 
 if __name__ == "__main__":
-    path = "best_agent_model.keras"
+    path = "best_agent_farol.keras"
     try:
         agent = load_model_and_agent(path)
     except Exception as e:
@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     print("Modelo carregado com sucesso!")
 
-    env = FarolEnv(tamanho=(50,50), dificuldade=3, max_steps=200)
+    env = FarolEnv(tamanho=(50,50), dificuldade=0, max_steps=200)
     sim = Simulator(env, max_steps=200)
     sim.agentes[agent.id] = agent
 
