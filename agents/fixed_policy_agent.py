@@ -48,7 +48,8 @@ class FixedPolicyAgent(Agent):
            1. tenta direção do alvo
            2. senão tenta virar à direita
            3. senão tenta virar à esquerda
-           4. fallback: tenta inversa
+           4. para baixo
+           5.fallback: tenta inversa
         """
         if self.last_observation is None:
             self.last_action = 0
@@ -61,11 +62,17 @@ class FixedPolicyAgent(Agent):
         # radar: front=0 (up), right=1, back=2 (down), left=3
         desired = alvo
 
+        ranges = self.last_observation["ranges"]
+        if self.last_action is not None and ranges[self.last_action] > 0.0:
+            return self.last_action
         # 1) tentar direção principal
         if self._livre(desired):
             self.last_action = desired
             return desired
-
+       
+        
+        
+        
         # 2) tentar virar à direita
         direita = (desired + 1) % 4
         if self._livre(direita):
@@ -77,11 +84,13 @@ class FixedPolicyAgent(Agent):
         if self._livre(esquerda):
             self.last_action = esquerda
             return esquerda
+        
 
-        # 4) fallback: inverso
+        # 4) fallback: inversa
         inverso = (desired + 2) % 4
         self.last_action = inverso
         return inverso
+    
 
     def avaliacaoEstadoAtual(self, recompensa: float):
         self.regista_reward(recompensa)
