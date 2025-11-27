@@ -3,7 +3,7 @@ import tensorflow as tf
 
 tf.random.set_seed(42)
 
-def create_rnn(input_dim=10, hidden_units=2, outputs=2):
+def create_mlp(input_dim=10, hidden_units=2, outputs=2):
     """
     RNN simples: input_dim -> Dense(internal) -> SimpleRNN(hidden_units) -> Dense(outputs)
     Usamos activations lineares nos outputs (interpretamos sinais).
@@ -18,7 +18,3 @@ def create_rnn(input_dim=10, hidden_units=2, outputs=2):
         tf.keras.layers.Dense(outputs, activation='linear')
     ])
     return model
-
-# compatibilidade: se o resto do código esperar create_mlp
-def create_mlp(input_dim=10):
-    return create_rnn(input_dim=input_dim)

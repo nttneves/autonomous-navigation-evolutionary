@@ -5,10 +5,10 @@ import json
 # TODO:PARA LER O AGENTE DO FICHEIRO NÃO PRECISO DE PARAMENTROS APENAS O NOME DO FICHEIRO 
 class Agent(ABC):
 
-    def __init__(self, id: str, politica: str=None, hasSensores=True):
+    def __init__(self, id: str, politica: str=None, sensores: bool =True):
         self.id = id
         self.politica = politica
-        self.sensores = bool(hasSensores)
+        self.sensores = sensores
         self.last_observation = None
         self.last_action = None
         self.rewards = []

@@ -2,16 +2,15 @@
 from agents.agent import Agent
 import numpy as np
 from algorithms.genetic import set_weights_vector
-from model.model import create_rnn
+from model.model import create_mlp
 
 class EvolvedAgent(Agent):
     def __init__(self, id: str, model=None, dim_input_rn: int = 10):
-        super().__init__(id)
-        self.politica = "evolved"
+        super().__init__(id, politica="evolved")
         if model is not None:
             self.rede_neuronal = model
         else:
-            self.rede_neuronal = create_rnn(input_dim=dim_input_rn)
+            self.rede_neuronal = create_mlp(input_dim=dim_input_rn)
         self.genoma = None
         self.last_action = None
 
@@ -30,7 +29,7 @@ class EvolvedAgent(Agent):
         if genoma is not None:
             set_weights_vector(self.rede_neuronal, genoma)
 
-    def _vetorizar_obs(self, obs):
+    def vetorizar_obs(self, obs):
         if obs is None:
             return np.zeros(10, dtype=np.float32)
         ranges = np.array(obs["ranges"], dtype=np.float32)   # 6
@@ -45,7 +44,7 @@ class EvolvedAgent(Agent):
         Para manter compatibilidade com o resto do código (4 ações), mapeamos:
           (dx_sign, dy_sign) -> action in {0..3}
         """
-        vetor = self._vetorizar_obs(self.last_observation)
+        vetor = self.vetorizar_obs(self.last_observation)
         out = self.rede_neuronal(np.array([vetor], dtype=np.float32), training=False)
         vals = out.numpy()[0]
         hx, hy = float(vals[0]), float(vals[1])

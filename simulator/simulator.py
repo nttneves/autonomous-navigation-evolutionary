@@ -1,6 +1,6 @@
 # simulator.py
 import json
-from environments.enviromnent_maze import MazeEnv
+from environments.environment_maze import MazeEnv
 from environments.environment import Enviroment
 from environments.environment_farol import FarolEnv
 from agents.evolved_agent import EvolvedAgent
@@ -24,6 +24,12 @@ class Simulator:
         # construir ambiente
         if data["ambiente"] == "farol":
             env = FarolEnv(
+                tamanho=tuple(data["tamanho"]),
+                dificuldade=data.get("dificuldade", 0),
+                max_steps=data.get("max_steps", 200)
+            )
+        elif data["ambiente"] == "labirinto":
+            env = MazeEnv(
                 tamanho=tuple(data["tamanho"]),
                 dificuldade=data.get("dificuldade", 0),
                 max_steps=data.get("max_steps", 200)

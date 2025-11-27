@@ -1,9 +1,10 @@
 # main_evolved.py
 import sys
 import tensorflow as tf
-from model.model import create_rnn
+from model.model import create_mlp
 from simulator.simulator import Simulator
 from environments.environment_farol import FarolEnv
+from environments.environment_maze import MazeEnv
 from algorithms.trainer import EvolutionTrainer
 from agents.evolved_agent import EvolvedAgent
 
@@ -14,7 +15,7 @@ def load_model_and_agent(path, input_dim=10):
     return agent
 
 if __name__ == "__main__":
-    path = "best_agent_farol.keras"
+    path = "model/best_agent_farol.keras"
     try:
         agent = load_model_and_agent(path)
     except Exception as e:
@@ -23,7 +24,7 @@ if __name__ == "__main__":
 
     print("Modelo carregado com sucesso!")
 
-    env = FarolEnv(tamanho=(50,50), dificuldade=0, max_steps=200)
+    env = FarolEnv(tamanho=(50,50), dificuldade=1, max_steps=200)
     sim = Simulator(env, max_steps=200)
     sim.agentes[agent.id] = agent
 
