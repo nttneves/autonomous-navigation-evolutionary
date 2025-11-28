@@ -1,0 +1,10 @@
+{
+    "ambiente": "farol",
+    "tamanho": [21, 21],
+    "dificuldade": 1,
+    "max_steps": 300,
+
+    "agentes": [
+        "files/evolved_agent.json"
+    ]
+}

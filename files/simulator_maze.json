@@ -1,0 +1,9 @@
+{
+    "ambiente": "labirinto",
+    "dificuldade": 0,
+    "max_steps": 400,
+
+    "agentes": [
+        "files/fixed_agent.json"
+    ]
+}

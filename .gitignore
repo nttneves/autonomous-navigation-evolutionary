@@ -1,2 +1,12 @@
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*$py.class
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/

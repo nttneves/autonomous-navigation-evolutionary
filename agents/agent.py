@@ -1,49 +1,57 @@
 # agent.py
 from abc import ABC, abstractmethod
 import json
+import numpy as np
 
-# TODO:PARA LER O AGENTE DO FICHEIRO NÃO PRECISO DE PARAMENTROS APENAS O NOME DO FICHEIRO 
 class Agent(ABC):
 
-    def __init__(self, id: str, politica: str=None, sensores: bool =True):
+    def __init__(self, id: str, politica: str=None, sensores: bool=True):
         self.id = id
         self.politica = politica
         self.sensores = sensores
+
+        # range dos sensores (1 = sem sensores, n = distância)
+        self.sensors_range = 5 if sensores else 1
+
         self.last_observation = None
         self.last_action = None
         self.rewards = []
-        self.ambiente = None
         self.posicao = None
 
+    # ---------------------------------------------------------
+    # Factory a partir de ficheiro JSON
+    # ---------------------------------------------------------
     @classmethod
     def cria(cls, ficheiro_json: str):
-        """Cria o agente a partir do ficheiro de parâmetros."""
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
+
         return cls(
             id=data["id"],
             politica=data.get("politica"),
-            hasSensores=data.get("sensores", False)
+            sensores=data.get("sensores", True)
         )
 
-    @abstractmethod
+    # ---------------------------------------------------------
+    # Métodos utilitários comuns a todos os agentes
+    # ---------------------------------------------------------
     def observacao(self, obs):
-        """Recebe observação do ambiente."""
-        pass
+        """Recebe observação do ambiente (ranges + radar)."""
+        self.last_observation = obs
 
-    @abstractmethod
-    def age(self) -> int:
-        """Escolhe a ação com base no estado interno."""
-        pass
+    def regista_reward(self, r: float):
+        self.rewards.append(r)
 
-    @abstractmethod
     def avaliacaoEstadoAtual(self, recompensa: float):
-        """Recebe feedback/reward do ambiente."""
-        pass
-
+        """Todos usam esta versão, mas subclasses podem estender."""
+        self.regista_reward(recompensa)
+    
     def instala(self, sensor: bool):
         """Associa sensores ao agente."""
         self.sensores = sensor
 
-    def regista_reward(self, r: float):
-        self.rewards.append(r)
+    # ---------------------------------------------------------
+    @abstractmethod
+    def age(self) -> int:
+        """Escolhe ação com base no estado interno."""
+        pass

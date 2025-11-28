@@ -7,45 +7,40 @@ from agents.evolved_agent import EvolvedAgent
 from agents.fixed_policy_agent import FixedPolicyAgent
 
 class Simulator:
-  # TODO: PARA LER DO FICHEIRO O UNICO PARAMETRO QUE PRECISO É O FICHEIRO
-    def __init__(self, env: Enviroment, max_steps: int):
+    def __init__(self, env: Enviroment, max_steps: int = 500):
         self.env = env
         self.max_steps = max_steps
         self.agentes = {}   # id → agente
         self.renderer = None
 
     # ------------------------------------------------------------------
-    # TODO: O FICHEIRO DEVE TER O AMBIENTE, TAMANHO, DIFICULDADE, MAX_STEPS, NUMERO DE AGENTES E CAMINHO PARA O FICHEIRO DE CRIAR AGENTES
     @classmethod
     def cria(cls, ficheiro_json: str):
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
 
         # construir ambiente
-        if data["ambiente"] == "farol":
-            env = FarolEnv(
-                tamanho=tuple(data["tamanho"]),
-                dificuldade=data.get("dificuldade", 0),
-                max_steps=data.get("max_steps", 200)
-            )
-        elif data["ambiente"] == "labirinto":
-            env = MazeEnv(
-                tamanho=tuple(data["tamanho"]),
-                dificuldade=data.get("dificuldade", 0),
-                max_steps=data.get("max_steps", 200)
-            )
+        env_name = data.get("ambiente")
+        tamanho = tuple(data.get("tamanho", (21,21)))
+        dificuldade = data.get("dificuldade", 0)
+        max_steps = data.get("max_steps", 200)
+
+        if env_name == "farol":
+            env = FarolEnv(tamanho=tamanho, dificuldade=dificuldade, max_steps=max_steps)
+        elif env_name == "labirinto":
+            # permitir que MazeEnv aceite tamanho opcional
+            env = MazeEnv(dificuldade=dificuldade, max_steps=max_steps)
         else:
             raise ValueError("Ambiente desconhecido")
 
-        sim = cls(env, data.get("max_steps", 200))
+        sim = cls(env, max_steps)
 
         # carregar agentes
-        for ficheiro in data["agentes"]:
+        for ficheiro in data.get("agentes", []):
             with open(ficheiro, "r") as fa:
                 a_data = json.load(fa)
 
-            tipo = a_data["tipo"]
-
+            tipo = a_data.get("tipo")
             if tipo == "fixed":
                 ag = FixedPolicyAgent.cria(ficheiro)
             elif tipo == "evolved":
@@ -126,15 +121,10 @@ class Simulator:
         if self.renderer:
             self.renderer.close()
             self.renderer = None
+        
 
         final_pos = self.env.get_posicao_agente(agent)
-        # procurar atributo que representa a meta
-        goal_pos = None
-        if hasattr(self.env, "farol_pos"):
-            goal_pos = self.env.farol_pos
-        elif hasattr(self.env, "saida_pos"):
-            goal_pos = self.env.saida_pos
-
+        goal_pos = getattr(self.env, "goal_pos", None)
         reached = (goal_pos is not None and final_pos == goal_pos)
 
         return {
