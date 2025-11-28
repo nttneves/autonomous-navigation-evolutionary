@@ -3,9 +3,9 @@ from environments.environment_farol import FarolEnv
 from agents.fixed_policy_agent import FixedPolicyAgent
 from simulator.simulator import Simulator
 
-env = MazeEnv()
+env = MazeEnv(dificuldade=2,max_steps=700)
 agent = FixedPolicyAgent(id="rnd")
-sim = Simulator(env, max_steps=200)
+sim = Simulator(env, max_steps=700)
 sim.agentes = {"rnd": agent}
 
 result = sim.run_episode(render=True)

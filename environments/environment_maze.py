@@ -23,19 +23,33 @@ class MazeEnv(Enviroment):
                  tamanho: Tuple[int, int] = (21, 21),
                  dificuldade: int = 0,
                  max_steps: int = 200,
-                 range_max: int = 5):
+                 range_max: int = 5,
+                 seed: int | None = None):
         super().__init__(tamanho=tamanho, dificuldade=dificuldade)
 
         self.max_steps = int(max_steps)
         self.saida_pos = None
         self.range_max = int(range_max)
+        
+        if dificuldade ==0:
+            self.seed = 42
+        elif dificuldade ==1:
+            self.seed = 150
+            self.tamanho = (31,31)
+        elif dificuldade ==2:
+            self.seed = 456
+            self.tamanho = (41,41)
+       
 
         # criar mapa inicial
-        self.mapa_estado = self.criar_mapa(dificuldade)
+        self.mapa_estado = self.criar_mapa()
         self._initial_map = self.mapa_estado.copy()
 
         self._steps = 0
         self._done = False
+       
+        
+        
 
     # ------------------------------------------------------------------
 
@@ -47,6 +61,8 @@ class MazeEnv(Enviroment):
         bx, by = self.saida_pos
         self.mapa_estado[by, bx] = SAIDA
 
+
+
         self.posicoes_agentes = {}
         self.passo_tempo = 0
         self._steps = 0
@@ -55,59 +71,59 @@ class MazeEnv(Enviroment):
     # ------------------------------------------------------------------
     
     def place_exit(self):
-        w, h = self.tamanho
-        # coloca a saída na metade superior do mapa
-        
-        bx = random.randint(0, w - 1)
-        
-        return (bx,1)
+        return self.saida_pos  # já definida pelo mapa fixo
 
     # ------------------------------------------------------------------
 
-    def criar_mapa(self, dificuldade=0):
+    def criar_mapa(self):
         w, h = self.tamanho
+        return self.gerar_mapa(w,h)
 
-        # garantir impar
+
+    def gerar_mapa(self, w, h):
+        # garante que w e h são ímpares
         if w % 2 == 0: w -= 1
         if h % 2 == 0: h -= 1
 
-        maze = np.full((h, w), fill_value=PAREDE, dtype=int)
+        maze = np.ones((h, w), dtype=int)
+        rng = random.Random(self.seed)  # gerador próprio
 
-        # DFS
-        def crave(x, y):
-            directions = [(2,0), (-2,0), (0,2), (0,-2)]
-            random.shuffle(directions)
-            for dx, dy in directions:
+        def carve(x, y):
+            
+            dirs = [(2,0),(-2,0),(0,2),(0,-2)]
+            rng.shuffle(dirs)
+            for dx, dy in dirs:
                 nx, ny = x + dx, y + dy
-                if 1 <= nx < w-1 and 1 <= ny < h-1 and maze[ny, nx] == PAREDE:
-                    maze[ny, nx] = VAZIO
-                    maze[y + dy//2, x + dx//2] = VAZIO
-                    crave(nx, ny)
+                if 1 <= nx < w-1 and 1 <= ny < h-1:
+                    if maze[ny, nx] == 1:
+                        maze[ny, nx] = 0
+                        maze[y + dy//2, x + dx//2] = 0
+                        carve(nx, ny)
 
-        # start
-        maze[1,1] = VAZIO
-        crave(1, 1)
+        # ponto inicial fixo
+        maze[1,1] = 0
+        carve(1,1)
 
-        # atualizar tamanho real
-        self.tamanho = (w, h)
+        candidatos_saida = [(x, 1) for x in range(1, w-1) if maze[1, x] == 0]
 
-        # saída
-        self.saida_pos = self.place_exit()
-        bx, by = self.saida_pos
-        maze[by, bx] = SAIDA
+        if candidatos_saida:
+            sx = rng.choice(candidatos_saida)
+            self.saida_pos = (sx[0], 0)   # saída no topo
+            maze[0, self.saida_pos[0]] = SAIDA
+        else:
+            # fallback
+            self.saida_pos = (w//2, 0)
+            maze[0, self.saida_pos[0]] = SAIDA
 
-        # spawn
-        sx, sy = 0, h-1
-        for dx in (0,1):
-            for dy in (0,1):
-                maze[sy-dy, sx+dx] = VAZIO
+        sx, sy = self.saida_pos
+        maze[sy, sx] = SAIDA
 
-        # abrir caminho se saída estiver bloqueada
-        neighbours = [(bx, by+1), (bx+1, by), (bx-1, by)]
-        if all(0 <= nx < w and 0 <= ny < h and maze[ny,nx] == PAREDE for nx,ny in neighbours):
-            maze[by+1, bx] = VAZIO
+        maze[h-1,1] = 0  # garantir saída inferior esquerda
+        maze[h-2,1] = 0
+        maze[h-1,2] = 0
 
         return maze
+
 
     # ------------------------------------------------------------------
 
