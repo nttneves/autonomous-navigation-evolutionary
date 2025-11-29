@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     print("Modelo carregado com sucesso!")
 
-    env = FarolEnv(tamanho=(50,50), dificuldade=1, max_steps=200)
+    env = FarolEnv(tamanho=(50,50), dificuldade=0, max_steps=200)
     sim = Simulator(env, max_steps=200)
     sim.agentes[agent.id] = agent
 

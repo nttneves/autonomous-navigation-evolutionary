@@ -13,7 +13,7 @@ class EvolutionTrainer:
         self.best_genome = None
         self.best_score = -np.inf
 
-    def _evaluate_genome(self, genome, env, max_steps):
+    def _evaluate_genome(self, genome, env: Enviroment, max_steps):
         model = self.model_builder()
         set_weights_vector(model, genome)
         agent = EvolvedAgent(id="eval", model=model)
@@ -31,7 +31,7 @@ class EvolutionTrainer:
         agent.observacao(obs)
 
         # distance before first move
-        bx, by = env.farol_pos
+        bx, by = env.goal_pos
         def dist(pos):
             dx = bx - pos[0]; dy = by - pos[1]; return (dx*dx + dy*dy)**0.5
 
@@ -105,11 +105,16 @@ class EvolutionTrainer:
         for gen in range(1, generations + 1):
             fitnesses, behaviours = self.evaluate_population(env_factory, max_steps, episodes_per_individual)
             pop_bcs = [b.copy() for b in behaviours]
-            # pass fitnesses to evolve; evolve returns novelty metrics
-            mean_nov, max_nov = self.ga.evolve(pop_bcs, fitnesses=fitnesses, alpha=alpha)
 
-            mean_f = float(np.mean(fitnesses)); max_f = float(np.max(fitnesses)); best_idx = int(np.argmax(fitnesses))
-            candidate = self.ga.population[best_idx]
+            # ---- escolher melhor indivíduo da geração atual ANTES de evoluir ----
+            mean_f = float(np.mean(fitnesses))
+            max_f = float(np.max(fitnesses))
+            best_idx = int(np.argmax(fitnesses))
+            # cópia do genoma da população atual
+            best_genome_gen = self.ga.population[best_idx].copy()
+
+            # reavalia este melhor com mais episódios
+            candidate = best_genome_gen
             cand_score, _ = self.evaluate_genome_multiple(candidate, env_factory, max_steps, n_eval=champion_eval_episodes)
 
             if cand_score > self.best_score:
@@ -118,7 +123,18 @@ class EvolutionTrainer:
                 if verbose:
                     print(f"--> Novo BEST global (gen {gen}) score={cand_score:.4f}")
 
-            history.append({"generation": gen, "mean_fitness": mean_f, "max_fitness": max_f, "mean_novelty": mean_nov, "max_novelty": max_nov, "best_idx": best_idx, "best_score_global": float(self.best_score)})
+            # ---- só agora evoluis a população ----
+            mean_nov, max_nov = self.ga.evolve(pop_bcs, fitnesses=fitnesses, alpha=alpha)
+
+            history.append({
+                "generation": gen,
+                "mean_fitness": mean_f,
+                "max_fitness": max_f,
+                "mean_novelty": mean_nov,
+                "max_novelty": max_nov,
+                "best_idx": best_idx,
+                "best_score_global": float(self.best_score)
+            })
             if verbose:
                 print(f"[Gen {gen}] fitness: mean={mean_f:.4f} max={max_f:.4f} | novelty: mean={mean_nov:.4f} max={max_nov:.4f} | best_idx={best_idx}")
         return history
