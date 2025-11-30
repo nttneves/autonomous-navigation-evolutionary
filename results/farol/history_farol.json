@@ -1,0 +1,317 @@
+[
+    {
+        "generation": 1,
+        "mean_fitness": -0.2542925741655102,
+        "max_fitness": 18.35788992479465,
+        "mean_novelty": 0.05240907520055771,
+        "max_novelty": 0.34656092524528503,
+        "best_idx": 98,
+        "best_score_global": 2.9766274813361795
+    },
+    {
+        "generation": 2,
+        "mean_fitness": 1.8990640323686458,
+        "max_fitness": 18.14996849343908,
+        "mean_novelty": 0.07945647090673447,
+        "max_novelty": 0.5215171575546265,
+        "best_idx": 86,
+        "best_score_global": 12.783025472037789
+    },
+    {
+        "generation": 3,
+        "mean_fitness": 2.5650446398370907,
+        "max_fitness": 19.18472788734046,
+        "mean_novelty": 0.06755368411540985,
+        "max_novelty": 0.46387380361557007,
+        "best_idx": 91,
+        "best_score_global": 15.260976129084463
+    },
+    {
+        "generation": 4,
+        "mean_fitness": 4.2399139557603585,
+        "max_fitness": 20.02240273822325,
+        "mean_novelty": 0.07448113709688187,
+        "max_novelty": 0.5082285404205322,
+        "best_idx": 4,
+        "best_score_global": 15.260976129084463
+    },
+    {
+        "generation": 5,
+        "mean_fitness": 3.4836355884076045,
+        "max_fitness": 18.577674721695626,
+        "mean_novelty": 0.07857049256563187,
+        "max_novelty": 0.3723745346069336,
+        "best_idx": 0,
+        "best_score_global": 15.260976129084463
+    },
+    {
+        "generation": 6,
+        "mean_fitness": 3.713383262204559,
+        "max_fitness": 19.89375106403768,
+        "mean_novelty": 0.0781891793012619,
+        "max_novelty": 0.4953936040401459,
+        "best_idx": 1,
+        "best_score_global": 15.260976129084463
+    },
+    {
+        "generation": 7,
+        "mean_fitness": 2.7673358425442673,
+        "max_fitness": 15.73080603567898,
+        "mean_novelty": 0.07837831228971481,
+        "max_novelty": 0.33292490243911743,
+        "best_idx": 1,
+        "best_score_global": 15.695215188917443
+    },
+    {
+        "generation": 8,
+        "mean_fitness": 3.6106877744150334,
+        "max_fitness": 18.871607740390054,
+        "mean_novelty": 0.07356177270412445,
+        "max_novelty": 0.36865946650505066,
+        "best_idx": 22,
+        "best_score_global": 18.816728989399106
+    },
+    {
+        "generation": 9,
+        "mean_fitness": 2.954495899326797,
+        "max_fitness": 21.729737125223625,
+        "mean_novelty": 0.07543288171291351,
+        "max_novelty": 0.2739749848842621,
+        "best_idx": 61,
+        "best_score_global": 18.816728989399106
+    },
+    {
+        "generation": 10,
+        "mean_fitness": 2.288212476750792,
+        "max_fitness": 16.64652174612596,
+        "mean_novelty": 0.08577289432287216,
+        "max_novelty": 0.2961865961551666,
+        "best_idx": 19,
+        "best_score_global": 18.816728989399106
+    },
+    {
+        "generation": 11,
+        "mean_fitness": 3.6216497906784273,
+        "max_fitness": 14.859327451958707,
+        "mean_novelty": 0.07009439915418625,
+        "max_novelty": 0.3065207004547119,
+        "best_idx": 101,
+        "best_score_global": 18.816728989399106
+    },
+    {
+        "generation": 12,
+        "mean_fitness": 2.780977775477955,
+        "max_fitness": 12.253136089426539,
+        "mean_novelty": 0.06423106044530869,
+        "max_novelty": 0.279483437538147,
+        "best_idx": 20,
+        "best_score_global": 18.816728989399106
+    },
+    {
+        "generation": 13,
+        "mean_fitness": 3.429768814432708,
+        "max_fitness": 18.624592794497236,
+        "mean_novelty": 0.06631652265787125,
+        "max_novelty": 0.2699279189109802,
+        "best_idx": 45,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 14,
+        "mean_fitness": 3.749156494610976,
+        "max_fitness": 20.728001451424053,
+        "mean_novelty": 0.06889703869819641,
+        "max_novelty": 0.3049606680870056,
+        "best_idx": 100,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 15,
+        "mean_fitness": 4.556635525624044,
+        "max_fitness": 23.335449531260277,
+        "mean_novelty": 0.06941267848014832,
+        "max_novelty": 0.27646899223327637,
+        "best_idx": 0,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 16,
+        "mean_fitness": 4.3351420815928225,
+        "max_fitness": 24.9575569575523,
+        "mean_novelty": 0.07070378959178925,
+        "max_novelty": 0.30350202322006226,
+        "best_idx": 78,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 17,
+        "mean_fitness": 5.482102271311158,
+        "max_fitness": 21.793045795954672,
+        "mean_novelty": 0.07892070710659027,
+        "max_novelty": 0.22935807704925537,
+        "best_idx": 49,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 18,
+        "mean_fitness": 5.241462544846149,
+        "max_fitness": 25.430699292149924,
+        "mean_novelty": 0.08115149289369583,
+        "max_novelty": 0.30104774236679077,
+        "best_idx": 5,
+        "best_score_global": 20.23218407672317
+    },
+    {
+        "generation": 19,
+        "mean_fitness": 5.1362006271740785,
+        "max_fitness": 24.287651865319233,
+        "mean_novelty": 0.08105231821537018,
+        "max_novelty": 0.32358381152153015,
+        "best_idx": 108,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 20,
+        "mean_fitness": 5.450672242248561,
+        "max_fitness": 25.511499163572733,
+        "mean_novelty": 0.07939691841602325,
+        "max_novelty": 0.25331011414527893,
+        "best_idx": 3,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 21,
+        "mean_fitness": 5.606009603474197,
+        "max_fitness": 24.82205561649468,
+        "mean_novelty": 0.08430234342813492,
+        "max_novelty": 0.24587039649486542,
+        "best_idx": 29,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 22,
+        "mean_fitness": 5.240455658927344,
+        "max_fitness": 22.493079032849604,
+        "mean_novelty": 0.07074698060750961,
+        "max_novelty": 0.2687069773674011,
+        "best_idx": 6,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 23,
+        "mean_fitness": 6.145770874524316,
+        "max_fitness": 20.742339145493926,
+        "mean_novelty": 0.07705001533031464,
+        "max_novelty": 0.2439606934785843,
+        "best_idx": 33,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 24,
+        "mean_fitness": 4.041017620889329,
+        "max_fitness": 19.016257275070252,
+        "mean_novelty": 0.0739089623093605,
+        "max_novelty": 0.19623875617980957,
+        "best_idx": 71,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 25,
+        "mean_fitness": 4.989157367291953,
+        "max_fitness": 22.76826826369817,
+        "mean_novelty": 0.07564160972833633,
+        "max_novelty": 0.23074710369110107,
+        "best_idx": 85,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 26,
+        "mean_fitness": 3.2354804139271587,
+        "max_fitness": 19.96610457519783,
+        "mean_novelty": 0.06680449098348618,
+        "max_novelty": 0.2848832309246063,
+        "best_idx": 95,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 27,
+        "mean_fitness": 4.505132416214192,
+        "max_fitness": 26.906681715556445,
+        "mean_novelty": 0.07196483761072159,
+        "max_novelty": 0.2169780433177948,
+        "best_idx": 46,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 28,
+        "mean_fitness": 4.374228653334128,
+        "max_fitness": 21.832423833715183,
+        "mean_novelty": 0.06695028394460678,
+        "max_novelty": 0.2077123373746872,
+        "best_idx": 86,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 29,
+        "mean_fitness": 3.674331020525104,
+        "max_fitness": 17.700464513192014,
+        "mean_novelty": 0.06821245700120926,
+        "max_novelty": 0.215366393327713,
+        "best_idx": 82,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 30,
+        "mean_fitness": 5.320471486952533,
+        "max_fitness": 21.88759959291005,
+        "mean_novelty": 0.0684657171368599,
+        "max_novelty": 0.24242451786994934,
+        "best_idx": 60,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 31,
+        "mean_fitness": 5.704305779311235,
+        "max_fitness": 21.424472596967615,
+        "mean_novelty": 0.07890032231807709,
+        "max_novelty": 0.20408037304878235,
+        "best_idx": 4,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 32,
+        "mean_fitness": 5.640069177443663,
+        "max_fitness": 25.75583149091321,
+        "mean_novelty": 0.08527098596096039,
+        "max_novelty": 0.21678534150123596,
+        "best_idx": 17,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 33,
+        "mean_fitness": 6.553472776883222,
+        "max_fitness": 24.122180672782395,
+        "mean_novelty": 0.08177792280912399,
+        "max_novelty": 0.21618470549583435,
+        "best_idx": 69,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 34,
+        "mean_fitness": 5.9767482096847555,
+        "max_fitness": 23.071001353762068,
+        "mean_novelty": 0.08587367832660675,
+        "max_novelty": 0.23232999444007874,
+        "best_idx": 40,
+        "best_score_global": 23.114707773938047
+    },
+    {
+        "generation": 35,
+        "mean_fitness": 6.898905350870194,
+        "max_fitness": 22.83014028419545,
+        "mean_novelty": 0.08115499466657639,
+        "max_novelty": 0.16900634765625,
+        "best_idx": 2,
+        "best_score_global": 23.114707773938047
+    }
+]
