@@ -5,7 +5,6 @@ from agents.evolved_agent import EvolvedAgent
 from algorithms.genetic import GeneticNoveltyTrainer, set_weights_vector
 from environments.environment import Enviroment
 
-
 class EvolutionTrainer:
     def __init__(
         self,
@@ -31,6 +30,13 @@ class EvolutionTrainer:
     # Avaliação de UM genoma num ambiente
     # =========================================================
     def _evaluate_genome(self, genome, env: Enviroment, max_steps):
+        """
+        Avalia o genoma num ambiente dado. Implementa reward diferente
+        para MazeEnv (sem reward por distância) e para FarolEnv (mantém
+        a componente de aproximação).
+        Também gera um behaviour characterization (BC) com 5 elementos:
+          [fx_norm, fy_norm, dist_norm, unique_cells_norm, traj_len_norm]
+        """
         model = self.model_builder()
         set_weights_vector(model, genome)
         agent = EvolvedAgent(id="eval", model=model)
@@ -48,33 +54,62 @@ class EvolutionTrainer:
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
 
-        # distância ao goal para shaping
+        # distance reference (quando aplicável)
         bx, by = env.goal_pos
 
-        def dist(pos):
-            dx = bx - pos[0]
-            dy = by - pos[1]
+        def euclid(pos1, pos2):
+            dx = pos1[0] - pos2[0]; dy = pos1[1] - pos2[1]
             return np.sqrt(dx*dx + dy*dy)
 
         prev_pos = start_pos
-        prev_dist = dist(prev_pos)
+        prev_dist = euclid(prev_pos, (bx, by))
 
-        # loop principal
+        # bookkeeping para BC
+        visited = set()
+        visited.add(start_pos)
+        traj_len = 0
+
+        # identificar tipo de ambiente (não importamos classes para evitar dependências)
+        env_name = env.__class__.__name__.lower()
+        is_maze = "maze" in env_name or "labir" in env_name  # robusto para MazeEnv
+        is_farol = "farol" in env_name or "beacon" in env_name
+
         while not done and steps < max_steps:
             action = agent.age()
             reward, done, info = env.agir(action, agent)
 
-            # reward shaping de aproximação
+            # actualizar posição
             pos_now = env.get_posicao_agente(agent)
             if pos_now is None:
                 pos_now = prev_pos
-            new_dist = dist(pos_now)
 
-            reward += (prev_dist - new_dist) * 0.5
-            prev_dist = new_dist
+            # comportamento de reward:
+            if is_maze:
+                # Maze: penalização por passo (leve), maior penalização por colisão,
+                # grande bónus por chegar ao goal. NÃO usar componente de distância.
+                # assumimos que env.agir já penaliza colisões com info["collision"] opcionalmente.
+                # normalizamos: keep simple, ajusta coeficientes se necessário.
+                step_penalty = -0.01
+                collision_penalty = -0.2 if info.get("collision", False) else 0.0
+                goal_bonus = 5.0 if info.get("reached_beacon", False) or pos_now == (bx, by) else 0.0
 
+                shaped = step_penalty + collision_penalty + goal_bonus
+                reward += shaped
+
+            else:
+                # Farol ou outros: mantemos componente de aproximação (shaping).
+                new_dist = euclid(pos_now, (bx, by))
+                # se env mover de forma válida, recompensa pela aproximação
+                reward += (prev_dist - new_dist) * 0.5
+                prev_dist = new_dist
+
+            # contabilizar
             agent.avaliacaoEstadoAtual(reward)
             total_reward += reward
+
+            # actualizar trajetoria / visited para BC
+            visited.add(pos_now)
+            traj_len += 1
 
             obs = env.observacaoPara(agent)
             agent.observacao(obs)
@@ -85,17 +120,30 @@ class EvolutionTrainer:
 
             steps += 1
 
-        # BC = posição final + distância normalizada
+        # BC = posição final normalizada + distância normalizada + coverage + traj_len
         final_pos = env.get_posicao_agente(agent)
         w, h = env.tamanho
         maxd = np.sqrt((w-1)**2 + (h-1)**2)
 
         if final_pos is None:
-            behaviour = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+            fx_norm = 0.0; fy_norm = 0.0; d_norm = 1.0
         else:
             fx, fy = final_pos
-            d = np.sqrt((fx - bx)**2 + (fy - by)**2)
-            behaviour = np.array([fx/(w-1), fy/(h-1), d/maxd], dtype=np.float32)
+            fx_norm = fx / float(w-1)
+            fy_norm = fy / float(h-1)
+            d = euclid(final_pos, (bx, by))
+            d_norm = d / maxd
+
+        unique_cells_norm = len(visited) / float(w * h)
+        traj_len_norm = traj_len / float(max_steps) if max_steps > 0 else 0.0
+
+        behaviour = np.array([
+            fx_norm,
+            fy_norm,
+            d_norm,
+            unique_cells_norm,
+            traj_len_norm
+        ], dtype=np.float32)
 
         return float(total_reward), behaviour
 
@@ -181,8 +229,13 @@ class EvolutionTrainer:
         history = []
 
         for gen in range(1, generations + 1):
-            # --- avaliação normal ---
-            fitnesses, behaviours = self.evaluate_population(env_factories, max_steps, episodes_per_individual)
+            # detect whether env_factories is a single callable or a list
+            if isinstance(env_factories, list):
+                # multi-env evaluation (Curriculum with explicit set)
+                fitnesses, behaviours = self.evaluate_population_multi(env_factories, max_steps, episodes_per_individual)
+            else:
+                fitnesses, behaviours = self.evaluate_population(env_factories, max_steps, episodes_per_individual)
+
             pop_bcs = [b.copy() for b in behaviours]
 
             mean_f = float(np.mean(fitnesses))
@@ -191,7 +244,7 @@ class EvolutionTrainer:
             best_genome_gen = self.ga.population[best_idx].copy()
 
             cand_score, _ = self.evaluate_genome_multiple(
-                best_genome_gen, env_factories, max_steps, n_eval=champion_eval_episodes
+                best_genome_gen, (env_factories if isinstance(env_factories, list) else env_factories), max_steps, n_eval=champion_eval_episodes
             )
 
             if cand_score > self.best_score:

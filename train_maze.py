@@ -8,76 +8,51 @@ from algorithms.trainer import EvolutionTrainer
 from model.model import create_mlp
 from environments.environment_maze import MazeEnv
 
-
 # =====================================================
-# 1. Curriculum Learning para o Maze
+# 1. Curriculum Learning para o Maze (factories por dificuldade)
 # =====================================================
 
 def make_env(dificuldade):
-    """
-    MazeEnv já define seeds fixas por dificuldade:
-        diff 0 → seed 42
-        diff 1 → seed 150
-        diff 2 → seed 456
-    """
-    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=600)
+    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=900)
 
-
-# lista de fábricas
 curriculum_env_factories = [
-    make_env(0),  # dificuldade 0  (seed=42)
-    make_env(1),  # dificuldade 1  (seed=150)
-    make_env(2),  # dificuldade 2  (seed=456)
+    make_env(0),
+    make_env(1),
+    make_env(2),
 ]
 
-# =====================================================
-# 2. Curriculum Learning progressivo
-# =====================================================
-
 def curriculum_env_factory(curr_generation):
-    """
-    Define qual dificuldade usar em cada parte do treino:
-
-      Geração 1–10  → dificuldade 0 (mais fácil)
-      Geração 11–20 → dificuldade 1
-      Geração 21–35 → dificuldade 2 (final)
-      Depois disso → mistura tudo, para robustez
-    """
-    if curr_generation <= 10:
+    if curr_generation <= 15:
         return curriculum_env_factories[0]()   # dif 0
-    elif curr_generation <= 20:
+    elif curr_generation <= 30:
         return curriculum_env_factories[1]()   # dif 1
-    elif curr_generation <= 35:
-        return curriculum_env_factories[2]()   # dif 2
     else:
-        return random.choice(curriculum_env_factories)()
+        return curriculum_env_factories[2]()   # dif 2
 
-
-# wrapper usado pelo trainer
 def wrapper_env_factory():
     return curriculum_env_factory(wrapper_env_factory.generation)
 
 wrapper_env_factory.generation = 1
 
-
 # =====================================================
-# 3. Criar trainer
+# 2. Trainer (parametros recomendados)
 # =====================================================
 
 trainer = EvolutionTrainer(
     model_builder=lambda: create_mlp(input_dim=10),
-    pop_size=200,              
+    pop_size=300,              # maior para maze
     archive_prob=0.15,
     elite_fraction=0.05
 )
 
-
 # =====================================================
-# 4. Treino com curriculum
+# 3. Treino com curriculum (fazemos uma geração por loop para
+#    poder controlar a fase do curriculum e guardar históricos corretos)
 # =====================================================
 
 GENERATIONS = 50
-MAX_STEPS = 800
+MAX_STEPS = 900
+EPISODES_PER = 5
 
 history = []
 
@@ -86,49 +61,69 @@ for gen in range(1, GENERATIONS + 1):
     print(f"\n=== CURRICULUM MAZE – Geração {gen} ===")
 
     h = trainer.train(
-        env_factories=wrapper_env_factory,
+        env_factories=wrapper_env_factory,     # nota: nome env_factories no teu trainer
         max_steps=MAX_STEPS,
-        generations=1,              # fazemos uma geração de cada vez
-        episodes_per_individual=3,  # mais episódios = mais robusto
-        alpha=0.9,
+        generations=1,
+        episodes_per_individual=EPISODES_PER,
+        alpha=0.85,
         verbose=True,
-        external_generation_offset= gen - 1
+        external_generation_offset=gen-1
     )
 
     history.extend(h)
 
-
 # =====================================================
-# 5. Guardar histórico
+# 4. Guardar histórico
 # =====================================================
 
-with open("results/history_maze.json", "w") as f:
+with open("results/maze/history_maze.json", "w") as f:
     json.dump(history, f, indent=4)
 
-print("Histórico guardado em results/history_maze.json")
+print("Histórico guardado em results/maze/history_maze.json")
 
 
 # =====================================================
-# 6. Curva de Aprendizagem
+# 5. Curva de aprendizagem – FITNESS
 # =====================================================
 
-gens = [h["generation"] for h in history]
-mean_fit = [h["mean_fitness"] for h in history]
-max_fit = [h["max_fitness"] for h in history]
+gens       = [h["generation"] for h in history]
+mean_fit   = [h["mean_fitness"] for h in history]
+max_fit    = [h["max_fitness"] for h in history]
+mean_nov   = [h["mean_novelty"] for h in history]
+max_nov    = [h["max_novelty"] for h in history]
 
 plt.figure(figsize=(10,5))
 plt.plot(gens, mean_fit, label="Mean Fitness", linewidth=2)
 plt.plot(gens, max_fit, label="Max Fitness", linewidth=2)
-plt.xlabel("Geração")
+plt.xlabel("Generation")
 plt.ylabel("Fitness")
-plt.title("Curva de Aprendizagem – Maze (Curriculum Learning)")
+plt.title("Learning Curve – Fitness")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("results/learning_curve_maze.png", dpi=300)
+plt.savefig("results/maze/plot_fitness.png", dpi=300)
 plt.close()
 
-print("Curva de aprendizagem guardada em results/learning_curve_maze.png")
+print("Curva Fitness guardada em results/maze/plot_fitness.png")
+
+
+# =====================================================
+# 6. Curva de aprendizagem – NOVELTY
+# =====================================================
+
+plt.figure(figsize=(10,5))
+plt.plot(gens, mean_nov, label="Mean Novelty", linewidth=2)
+plt.plot(gens, max_nov,  label="Max Novelty",  linewidth=2)
+plt.xlabel("Generation")
+plt.ylabel("Novelty")
+plt.title("Learning Curve – Novelty")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.savefig("results/maze/plot_novelty.png", dpi=300)
+plt.close()
+
+print("Gráfico Novelty guardado em results/maze/plot_novelty.png")
 
 
 # =====================================================
