@@ -24,7 +24,7 @@ class SimpleRNNCell:
 
 class SimpleMLP_RNN:
     """Input -> Dense -> RNN -> Dense -> Output"""
-    def __init__(self, input_dim=10, hidden_units=16, outputs=4, seed=42):
+    def __init__(self, input_dim=12, hidden_units=32, outputs=4, seed=42):
         rng = np.random.default_rng(seed)
 
         # Dense inicial
@@ -58,5 +58,5 @@ class SimpleMLP_RNN:
         self.W1, self.b1, self.rnn.Wx, self.rnn.Wh, self.rnn.b, self.W2, self.b2 = weights
 
 
-def create_mlp(input_dim=10, hidden_units=16, outputs=4):
+def create_mlp(input_dim=12, hidden_units=32, outputs=4):
     return SimpleMLP_RNN(input_dim, hidden_units, outputs)

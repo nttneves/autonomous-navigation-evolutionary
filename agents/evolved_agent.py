@@ -5,14 +5,14 @@ from model.model import create_mlp
 import json
 
 class EvolvedAgent(Agent):
-    def __init__(self, id: str, model=None, dim_input_rn: int = 10, sensores: bool=True):
+    def __init__(self, id: str, model=None, dim_input_rn: int = 12, sensores: bool=True):
         super().__init__(id, politica="evolved", sensores=sensores)
         self.dim_input_rn = dim_input_rn
 
         # cria rede NumPy se não passada (agora 4 outputs)
         self.rede_neuronal = model if model is not None else create_mlp(
             input_dim=dim_input_rn,
-            hidden_units=16,
+            hidden_units=32,
             outputs=4
         )
 
@@ -23,11 +23,11 @@ class EvolvedAgent(Agent):
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
         agent_id = data["id"]
-        dim_input = data.get("dim_input", 10)
+        dim_input = data.get("dim_input", 12)
         sensores = bool(data["sensores"])
 
         # cria novo modelo numpy com 4 outputs
-        model = create_mlp(input_dim=dim_input, hidden_units=16, outputs=4)
+        model = create_mlp(input_dim=dim_input, hidden_units=32, outputs=4)
         return cls(
             id=agent_id,
             model=model,
@@ -47,24 +47,16 @@ class EvolvedAgent(Agent):
     # OBSERVAÇÃO -> VETOR
     # ============================================================
     def vetorizar_obs(self, obs):
+        """
+        O ambiente (MazeEnv) já devolve a observação como um vetor 1D de 12 inputs.
+        Portanto, apenas devolvemos o vetor diretamente.
+        """
         if obs is None:
             return np.zeros(self.dim_input_rn, dtype=np.float32)
         
-        ranges = np.array(obs["ranges"], dtype=np.float32)
-        radar  = np.array(obs["radar"], dtype=np.float32)
-        # 2. Dados de Posição (Essencial para a Generalização!)
-       # r, c = obs["posicao"]
-       # H, W = obs["tamanho"] # Assumindo que o tamanho do labirinto está no obs
-        # Normalização
-        #norm_r = r / (H - 1)
-       # norm_c = c / (W - 1)
-       # v = np.concatenate([ranges, radar, [norm_r, norm_c]])
-        v = np.concatenate([ranges, radar])
-        if len(v) < self.dim_input_rn:
-            v = np.pad(v, (0, self.dim_input_rn - len(v)), 'constant')
-        elif len(v) > self.dim_input_rn:
-            v = v[:self.dim_input_rn]
-        return v
+        # O 'obs' JÁ É o array 1D com 12 valores.
+        # NENHUMA CONVERSÃO É NECESSÁRIA.
+        return obs
 
     # ============================================================
     # POLÍTICA DO AGENTE

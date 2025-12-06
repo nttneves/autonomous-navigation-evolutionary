@@ -101,28 +101,29 @@ class EvolutionTrainer:
             # reward shaping específico para maze
             if is_maze:
                 # incentivo a mover-se (pequeno)
-                reward += 1.0
+                reward -= 0.5
 
                 if info.get("collision", False):
                     # colisões penalizam
-                    reward -= 8
-                else:
-                   
-                   
+                    reward -= 10.0
+                else:                  
                     # só recompensa exploração se for novo cell
                     if pos_now not in visited:
                         new_dist = hypot(x - bx, y - by)
                         delta = max(0, prev_dist - new_dist)
-                        reward += delta * 10.0
+                        reward += delta * 5.0
                         prev_dist = new_dist
-                        reward += 5.0  # bónus por novo cell
+                        reward += 10.0  # bónus por novo cell
                         visited.add(pos_now)
                         #print(f"Novo cell visitado: {pos_now} | Distância ao objetivo: {new_dist:.2f}, Recompensa extra! {delta:.2f}")
-                    else:
-                        reward -= 4.5
+                    #else:
+                       # reward -=5.0 # penaliza repetir cells
 
                 if pos_now == (bx, by) or info.get("reached_beacon", False):
-                    reward += 500.0
+                    reward += 1000.0
+                    #passos_total = (max_steps - steps)*10
+                    #reward += passos_total
+                    done = True
                     print(f"Objetivo alcançado em {steps} passos!")
             else:
                 # para outros ambientes: distância como shaping
