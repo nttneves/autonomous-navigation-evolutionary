@@ -22,12 +22,11 @@ curriculum_env_factories = [
 ]
 
 def curriculum_env_factory(curr_generation):
-    if curr_generation <= 15:
+    if curr_generation <= 100:
         return curriculum_env_factories[0]()   # dif 0
-    elif curr_generation <= 30:
-        return curriculum_env_factories[1]()   # dif 1
     else:
-        return curriculum_env_factories[2]()   # dif 2
+        return curriculum_env_factories[1]()   # dif 1
+    
 
 def wrapper_env_factory():
     return curriculum_env_factory(wrapper_env_factory.generation)
@@ -40,9 +39,9 @@ wrapper_env_factory.generation = 1
 
 trainer = EvolutionTrainer(
     model_builder=lambda: create_mlp(input_dim=10),
-    pop_size=300,              # maior para maze
+    pop_size=50,              # maior para maze
     archive_prob=0.15,
-    elite_fraction=0.05
+    elite_fraction=0.1
 )
 
 # =====================================================
@@ -50,9 +49,9 @@ trainer = EvolutionTrainer(
 #    poder controlar a fase do curriculum e guardar históricos corretos)
 # =====================================================
 
-GENERATIONS = 50
-MAX_STEPS = 900
-EPISODES_PER = 5
+GENERATIONS = 100
+MAX_STEPS = 200
+EPISODES_PER = 1
 
 history = []
 
@@ -60,12 +59,13 @@ for gen in range(1, GENERATIONS + 1):
     wrapper_env_factory.generation = gen
     print(f"\n=== CURRICULUM MAZE – Geração {gen} ===")
 
+
     h = trainer.train(
         env_factories=wrapper_env_factory,     # nota: nome env_factories no teu trainer
         max_steps=MAX_STEPS,
         generations=1,
         episodes_per_individual=EPISODES_PER,
-        alpha=0.85,
+        alpha=0.4,
         verbose=True,
         external_generation_offset=gen-1
     )
@@ -131,8 +131,8 @@ print("Gráfico Novelty guardado em results/maze/plot_novelty.png")
 # =====================================================
 
 ok, score = trainer.save_champion(
-    "model/best_agent_maze.keras",
-    env_factory=lambda: curriculum_env_factory(999999),
+    "model/best_agent_maze",
+    env_factory=lambda: curriculum_env_factory(0),
     max_steps=MAX_STEPS,
     n_eval=20,
     threshold=-2.0

@@ -116,6 +116,7 @@ class Enviroment(ABC):
         ranges = [self._ray_distance(ax, ay, dx, dy, max_r) for dx, dy in rf_dirs]
         radar = self._radar_quadrants(agente)
 
+        #return {"ranges": ranges, "radar": radar, "posicao": agente.posicao, "tamanho": self.tamanho}
         return {"ranges": ranges, "radar": radar}
 
     # ================================================================
@@ -127,21 +128,25 @@ class Enviroment(ABC):
         dx, dy = ACTION_TO_DELTA[accao]
         nx, ny = x + dx, y + dy
 
-        reward = 0.0
+        #reward = 0.0
         done = False
+        inff={}
 
         if not self._in_bounds(nx, ny) or self.mapa_estado[ny, nx] == PAREDE:
-            reward -= 0.01
+            #reward -= 0.01
+            inff["collision"] = True
             nx, ny = x, y
         else:
             self.posicoes_agentes[agente.id] = (nx, ny)
             agente.posicao = (nx, ny)
 
         if (nx, ny) == self.goal_pos:
-            reward += 1.0
+            #reward += 1.0
+            inff["reached_beacon"] = True
             done = True
 
-        return reward, done, {}
+        #return reward, done, {}
+        return 0.0, done, inff
 
     # ================================================================
     # Fim de episódio

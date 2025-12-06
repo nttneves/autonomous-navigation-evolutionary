@@ -68,7 +68,7 @@ class Simulator:
         self.env.reset()
 
         # posição inicial
-        start_pos = (0, self.env.tamanho[1] - 1)
+        start_pos = (1, self.env.tamanho[1] - 1)
 
         # registar agentes corretamente
         for ag in self.agentes.values():
@@ -141,7 +141,7 @@ class Simulator:
         agent = self.listaAgentes()[0]
 
         self.env.reset()
-        start = (0, self.env.tamanho[1] - 1)
+        start = (1, self.env.tamanho[1] - 1)
         self.env.regista_agente(agent, start)
         agent.posicao = start
 

@@ -1,7 +1,7 @@
 {
     "id": "evo1",
     "tipo": "evolved",
-    "path": "model/best_agent_farol.keras",
+    "path": "model/best_agent_maze.npy",
     "dim_input": 10,
     "sensores": true
 }
