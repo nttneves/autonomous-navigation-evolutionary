@@ -7,11 +7,11 @@ class MazeEnv(Enviroment):
 
     def __init__(self, dificuldade=0, max_steps: int = 200):
         if dificuldade == 0:
-            tamanho = (12,12); seed = 42
+            tamanho = (21,21); seed = 42
         elif dificuldade == 1:
-            tamanho = (20,20); seed = 150
+            tamanho = (31,31); seed = 150
         else:
-            tamanho = (30,30); seed = 456
+            tamanho = (41,41); seed = 456
 
         self.seed = seed
         super().__init__(tamanho, dificuldade, max_steps)

@@ -1,11 +1,9 @@
 # algorithms/trainer.py
 import numpy as np
 from typing import Callable, Any, List
-
 from agents.evolved_agent import EvolvedAgent
 from algorithms.genetic import GeneticNoveltyTrainer, set_weights_vector
 from environments.environment import Enviroment
-
 
 class EvolutionTrainer:
     def __init__(
@@ -18,7 +16,6 @@ class EvolutionTrainer:
     ):
         np.random.seed(seed)
         self.model_builder = model_builder
-
         self.ga = GeneticNoveltyTrainer(
             model_builder,
             pop_size=pop_size,
@@ -26,49 +23,26 @@ class EvolutionTrainer:
             elite_fraction=elite_fraction,
             seed=seed
         )
-
         self.best_genome = None
         self.best_score = -np.inf
-        self._model_cache = {}   # cache de modelos indexados por genome_id
 
     # =========================================================
-    # Cache + criação de modelo
+    # Avaliação de UM genoma num ambiente
     # =========================================================
-    def _get_or_build_model(self, genome_id, genome):
+    def _evaluate_genome(self, genome, env: Enviroment, max_steps):
         """
-        Cria ou reutiliza um modelo SimpleMLP_RNN e aplica o genoma.
-        Usa set_weights_vector (do genetic.py), não set_weights().
+        Avalia o genoma num ambiente dado. Implementa reward diferente
+        para MazeEnv (sem reward por distância) e para FarolEnv (mantém
+        a componente de aproximação).
+        Também gera um behaviour characterization (BC) com 5 elementos:
+          [fx_norm, fy_norm, dist_norm, unique_cells_norm, traj_len_norm]
         """
-        model = self._model_cache.get(genome_id)
-
-        if model is None:
-            model = self.model_builder()
-            self._model_cache[genome_id] = model
-
-        # aplica pesos ao modelo (genoma é vetor 1D)
+        model = self.model_builder()
         set_weights_vector(model, genome)
-        return model
-
-    # =========================================================
-    # Avaliação de 1 genoma (1 episódio)
-    # =========================================================
-    def _evaluate_genome(self, genome, env: Enviroment, max_steps, genome_id=0):
-        """
-        Avalia um único genoma num único episódio no env passado.
-        Retorna: (total_reward, behaviour_vector)
-        """
-        model = self._get_or_build_model(genome_id, genome)
-        agent = EvolvedAgent(id="eval", model=model, sensores=True)
-
-        # Reset do estado da RNN no agente (importante)
-        if hasattr(agent, "reset"):
-            agent.reset()
+        agent = EvolvedAgent(id="eval", model=model)
 
         env.reset()
-
-        h = env.tamanho[1]
-        start_pos = (1,h-1)
-        #start_pos = (h-1,1)
+        start_pos = (0, env.tamanho[1] - 1)
         env.regista_agente(agent, start_pos)
         agent.posicao = start_pos
 
@@ -76,277 +50,249 @@ class EvolutionTrainer:
         steps = 0
         done = False
 
+        # observação inicial
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
 
+        # distance reference (quando aplicável)
         bx, by = env.goal_pos
-        px, py = start_pos
 
-        hypot = np.hypot
-        dist = hypot(px - bx, py - by)
-        prev_dist = dist
+        def euclid(pos1, pos2):
+            dx = pos1[0] - pos2[0]; dy = pos1[1] - pos2[1]
+            return np.sqrt(dx*dx + dy*dy)
+
+        prev_pos = start_pos
+        prev_dist = euclid(prev_pos, (bx, by))
+
+        # bookkeeping para BC
+        visited = set()
+        visited.add(start_pos)
         traj_len = 0
-        trajectory = [] # Novo
 
-        is_maze = "maze" in env.__class__.__name__.lower()
-        visited = {start_pos}
+        # identificar tipo de ambiente (não importamos classes para evitar dependências)
+        env_name = env.__class__.__name__.lower()
+        is_maze = "maze" in env_name or "labir" in env_name  # robusto para MazeEnv
+        is_farol = "farol" in env_name or "beacon" in env_name
 
-        while steps < max_steps and not done:
+        while not done and steps < max_steps:
             action = agent.age()
             reward, done, info = env.agir(action, agent)
 
-            pos_now = env.get_posicao_agente(agent) or (px, py)
-            x, y = pos_now
+            # actualizar posição
+            pos_now = env.get_posicao_agente(agent)
+            if pos_now is None:
+                pos_now = prev_pos
 
-            # reward shaping específico para maze
+            # comportamento de reward:
             if is_maze:
-                # incentivo a mover-se (pequeno)
-                reward -= 0.5
+                # Maze: penalização por passo (leve), maior penalização por colisão,
+                # grande bónus por chegar ao goal. NÃO usar componente de distância.
+                # assumimos que env.agir já penaliza colisões com info["collision"] opcionalmente.
+                # normalizamos: keep simple, ajusta coeficientes se necessário.
+                step_penalty = -0.01
+                collision_penalty = -0.2 if info.get("collision", False) else 0.0
+                goal_bonus = 5.0 if info.get("reached_beacon", False) or pos_now == (bx, by) else 0.0
 
-                if info.get("collision", False):
-                    # colisões penalizam
-                    reward -= 10.0
-                else:                  
-                    # só recompensa exploração se for novo cell
-                    if pos_now not in visited:
-                        new_dist = hypot(x - bx, y - by)
-                        delta = max(0, prev_dist - new_dist)
-                        reward += delta * 5.0
-                        prev_dist = new_dist
-                        reward += 10.0  # bónus por novo cell
-                        visited.add(pos_now)
-                        #print(f"Novo cell visitado: {pos_now} | Distância ao objetivo: {new_dist:.2f}, Recompensa extra! {delta:.2f}")
-                    #else:
-                       # reward -=5.0 # penaliza repetir cells
+                shaped = step_penalty + collision_penalty + goal_bonus
+                reward += shaped
 
-                if pos_now == (bx, by) or info.get("reached_beacon", False):
-                    reward += 1000.0
-                    #passos_total = (max_steps - steps)*10
-                    #reward += passos_total
-                    done = True
-                    print(f"Objetivo alcançado em {steps} passos!")
             else:
-                # para outros ambientes: distância como shaping
-                new_dist = hypot(x - bx, y - by)
-                reward += (prev_dist - new_dist) * 5.0
+                # Farol ou outros: mantemos componente de aproximação (shaping).
+                new_dist = euclid(pos_now, (bx, by))
+                # se env mover de forma válida, recompensa pela aproximação
+                reward += (prev_dist - new_dist) * 0.5
                 prev_dist = new_dist
 
-        
-
-            total_reward += reward
+            # contabilizar
             agent.avaliacaoEstadoAtual(reward)
+            total_reward += reward
 
+            # actualizar trajetoria / visited para BC
+            visited.add(pos_now)
             traj_len += 1
-            # observa novo estado
-            agent.observacao(env.observacaoPara(agent))
-            if steps % 5 == 0: # A cada 5 passos
-                trajectory.append(pos_now)
-            px, py = x, y
+
+            obs = env.observacaoPara(agent)
+            agent.observacao(obs)
+            prev_pos = pos_now
 
             if hasattr(env, "atualizacao"):
                 env.atualizacao()
 
             steps += 1
 
-        # Behaviour Characteristic final
-        final_pos = env.get_posicao_agente(agent) or start_pos
+        # BC = posição final normalizada + distância normalizada + coverage + traj_len
+        final_pos = env.get_posicao_agente(agent)
         w, h = env.tamanho
-        fx, fy = final_pos
-        maxd = hypot(w - 1, h - 1) if (w > 1 and h > 1) else 1.0
-        d_norm = dist / maxd
+        maxd = np.sqrt((w-1)**2 + (h-1)**2)
 
-        unique_cells_norm = len(visited) / max(1, w * h)
-        traj_len_norm = traj_len / max(1, max_steps)
+        if final_pos is None:
+            fx_norm = 0.0; fy_norm = 0.0; d_norm = 1.0
+        else:
+            fx, fy = final_pos
+            fx_norm = fx / float(w-1)
+            fy_norm = fy / float(h-1)
+            d = euclid(final_pos, (bx, by))
+            d_norm = d / maxd
 
-        # Novo: Amostrar 5 posições (ou outro número fixo) da trajetória normalizada
-        num_samples = 5
-        indices = np.linspace(0, len(trajectory) - 1, num_samples, dtype=int)
-        sampled_trajectory = [trajectory[i] for i in indices]
-        # Normalizar as coordenadas X e Y
-        w, h = env.tamanho
-        traj_bcs = np.array([
-            (x / max(1, w - 1), y / max(1, h - 1)) for x, y in sampled_trajectory
-        ]).flatten()
-        # Behaviour Characteristic final
-        behaviour = np.concatenate([
-            traj_bcs, # As 5 posições (10 valores)
-            np.array([
-                fx / max(1, (w - 1)),
-                fy / max(1, (h - 1)),
-                d_norm,
-                unique_cells_norm,
-                traj_len_norm
-            ], dtype=np.float32)
-        ])
+        unique_cells_norm = len(visited) / float(w * h)
+        traj_len_norm = traj_len / float(max_steps) if max_steps > 0 else 0.0
 
-        # return raw total_reward (trainer decide se usa shift)
+        behaviour = np.array([
+            fx_norm,
+            fy_norm,
+            d_norm,
+            unique_cells_norm,
+            traj_len_norm
+        ], dtype=np.float32)
+
         return float(total_reward), behaviour
 
     # =========================================================
-    # Avaliação população (single-env)
+    # Avaliação normal (um ambiente)
     # =========================================================
-    def evaluate_population(self, env_factory: Callable[[], Enviroment], max_steps, episodes_per_individual=3):
+    def evaluate_population(self, env_factory, max_steps, episodes_per_individual=3):
         pop = self.ga.population
-        N = len(pop)
-
-        # limpar cache de modelos (garante consistência)
-        self._model_cache.clear()
-
-        fitnesses = np.zeros(N, dtype=np.float32)
+        fitnesses = []
         behaviours = []
 
-        for gi, genome in enumerate(pop):
+        for genome in pop:
             total = 0.0
             bcs = []
             for _ in range(episodes_per_individual):
                 env = env_factory()
-                r, bc = self._evaluate_genome(genome, env, max_steps, genome_id=gi)
+                r, bc = self._evaluate_genome(genome, env, max_steps)
                 total += r
                 bcs.append(bc)
+            fitnesses.append(total / episodes_per_individual)
+            behaviours.append(np.mean(np.stack(bcs), axis=0).astype(np.float32))
 
-            fitnesses[gi] = total / episodes_per_individual
-            behaviours.append(np.mean(bcs, axis=0).astype(np.float32))
-
-        return fitnesses.tolist(), behaviours
+        return fitnesses, behaviours
 
     # =========================================================
-    # Avaliação população (multi-env)
-    # env_factories: lista de factories (funções que retornam ambientes)
+    # Avaliação multi-ambiente (Curriculum Learning)
     # =========================================================
-    def evaluate_population_multi(self, env_factories: List[Callable[[], Enviroment]], max_steps, episodes_per_individual=3):
+    def evaluate_population_multi(
+        self,
+        env_factories: List[Callable[[], Enviroment]],
+        max_steps: int,
+        episodes_per_individual: int = 3
+    ):
         pop = self.ga.population
-        N = len(pop)
-
-        self._model_cache.clear()
-
-        fitnesses = np.zeros(N, dtype=np.float32)
+        fitnesses = []
         behaviours = []
 
-        for gi, genome in enumerate(pop):
+        for genome in pop:
             all_rewards = []
             all_bcs = []
+
+            # a cada geração cada indivíduo é testado em TODOS os ambientes
             for make_env in env_factories:
                 for _ in range(episodes_per_individual):
                     env = make_env()
-                    r, bc = self._evaluate_genome(genome, env, max_steps, genome_id=gi)
+                    r, bc = self._evaluate_genome(genome, env, max_steps)
                     all_rewards.append(r)
                     all_bcs.append(bc)
 
-            fitnesses[gi] = np.mean(all_rewards)
-            behaviours.append(np.mean(all_bcs, axis=0).astype(np.float32))
+            fitnesses.append(np.mean(all_rewards))
+            behaviours.append(np.mean(np.stack(all_bcs), axis=0).astype(np.float32))
 
-        return fitnesses.tolist(), behaviours
+        return fitnesses, behaviours
 
     # =========================================================
-    # Reavaliação (múltiplos episódios)
+    # Reavaliação mais robusta
     # =========================================================
-    def evaluate_genome_multiple(self, genome, env_factory: Callable[[], Enviroment], max_steps, n_eval=8):
-        rewards, bcs = [], []
+    def evaluate_genome_multiple(self, genome, env_factory, max_steps, n_eval=8):
+        total = 0.0
+        bcs = []
         for _ in range(n_eval):
             env = env_factory()
             r, bc = self._evaluate_genome(genome, env, max_steps)
-            rewards.append(r)
+            total += r
             bcs.append(bc)
-        return np.mean(rewards), np.mean(bcs, axis=0)
+        return total / n_eval, np.mean(np.stack(bcs), axis=0)
 
     # =========================================================
-    # TREINO
-    # strategy: 'both'|'novelty'|'fitness'
-    #   - 'both' usa alpha passado (0..1) como peso para novelty
-    #   - 'novelty' força alpha=1.0 (somente novelty)
-    #   - 'fitness' força alpha=0.0 (somente fitness)
+    # TREINO: suportar 1 ambiente OU lista de ambientes
     # =========================================================
     def train(
-        self,
-        env_factories,
-        max_steps: int,
-        generations: int = 50,
-        episodes_per_individual: int = 3,
-        alpha: float = 0.7,
-        strategy: str = "both",
-        verbose: bool = True,
-        champion_eval_episodes: int = 8,
-        external_generation_offset: int = 0
-    ):
+            self,
+            env_factories,
+            max_steps: int,
+            generations: int = 50,
+            episodes_per_individual: int = 3,
+            alpha: float = 0.7,
+            verbose: bool = True,
+            champion_eval_episodes: int = 8,
+            external_generation_offset: int = 0
+        ):
+        
         history = []
 
         for gen in range(1, generations + 1):
-            # avaliar população (multi ou single)
+            # detect whether env_factories is a single callable or a list
             if isinstance(env_factories, list):
-                fitnesses, behaviours = self.evaluate_population_multi(
-                    env_factories, max_steps, episodes_per_individual
-                )
+                # multi-env evaluation (Curriculum with explicit set)
+                fitnesses, behaviours = self.evaluate_population_multi(env_factories, max_steps, episodes_per_individual)
             else:
-                fitnesses, behaviours = self.evaluate_population(
-                    env_factories, max_steps, episodes_per_individual
-                )
+                fitnesses, behaviours = self.evaluate_population(env_factories, max_steps, episodes_per_individual)
 
-            fitnesses_np = np.array(fitnesses, dtype=np.float32)
+            pop_bcs = [b.copy() for b in behaviours]
 
-            best_idx = int(np.argmax(fitnesses_np))
+            mean_f = float(np.mean(fitnesses))
+            max_f = float(np.max(fitnesses))
+            best_idx = int(np.argmax(fitnesses))
+            best_genome_gen = self.ga.population[best_idx].copy()
 
-            # validação mais rigorosa do melhor candidato (múltiplos episódios)
             cand_score, _ = self.evaluate_genome_multiple(
-                self.ga.population[best_idx],
-                (env_factories if callable(env_factories) else env_factories),
-                max_steps,
-                n_eval=champion_eval_episodes
+                best_genome_gen, (env_factories if isinstance(env_factories, list) else env_factories), max_steps, n_eval=champion_eval_episodes
             )
 
             if cand_score > self.best_score:
                 self.best_score = cand_score
-                self.best_genome = self.ga.population[best_idx].copy()
+                self.best_genome = best_genome_gen.copy()
                 if verbose:
                     print(f"--> Novo BEST global (gen {external_generation_offset + gen}) score={cand_score:.4f}")
 
-            # definir alpha de acordo com strategy
-            if strategy == "novelty":
-                use_alpha = 1.0
-            elif strategy == "fitness":
-                use_alpha = 0.0
-            else:
-                use_alpha = float(alpha)
+            # evolve
+            mean_nov, max_nov = self.ga.evolve(pop_bcs, fitnesses=fitnesses, alpha=alpha)
 
-            # faz a evolução (GA interno decide mutação / crossover)
-            mean_nov, max_nov = self.ga.evolve(behaviours, fitnesses, alpha=use_alpha)
-
+            # --- geração global corrigida ---
             history.append({
                 "generation": external_generation_offset + gen,
-                "mean_fitness": float(fitnesses_np.mean()),
-                "max_fitness": float(fitnesses_np.max()),
-                "mean_novelty": float(mean_nov),
-                "max_novelty": float(max_nov),
+                "mean_fitness": mean_f,
+                "max_fitness": max_f,
+                "mean_novelty": mean_nov,
+                "max_novelty": max_nov,
                 "best_idx": best_idx,
-                "best_score_global": float(self.best_score),
-                "strategy": strategy,
-                "alpha_used": use_alpha
+                "best_score_global": float(self.best_score)
             })
 
             if verbose:
-                print(
-                    f"[Gen {external_generation_offset + gen}] fitness: mean={fitnesses_np.mean():.4f} "
-                    f"max={fitnesses_np.max():.4f} | novelty: mean={mean_nov:.4f} max={max_nov:.4f} | best_idx={best_idx}"
-                )
+                print(f"[Gen {external_generation_offset + gen}] fitness: mean={mean_f:.4f} max={max_f:.4f} | "
+                    f"novelty: mean={mean_nov:.4f} max={max_nov:.4f} | best_idx={best_idx}")
 
         return history
 
     # =========================================================
-    # Utility
-    # =========================================================
     def get_champion_agent(self):
-        genome = self.best_genome or self.ga.population[0]
+        if self.best_genome is None:
+            g = self.ga.population[0]
+            model = self.model_builder()
+            set_weights_vector(model, g)
+            a = EvolvedAgent(id="champion", model=model)
+            a.set_genoma(g)
+            return a
+
         model = self.model_builder()
+        set_weights_vector(model, self.best_genome)
+        a = EvolvedAgent(id="champion", model=model)
+        a.set_genoma(self.best_genome)
+        return a
 
-        set_weights_vector(model, genome)
-
-        agent = EvolvedAgent(id="champion", model=model)
-        agent.set_genoma(genome)
-
-        return agent
-
+    # =========================================================
     def save_champion(self, path, env_factory, max_steps, n_eval=10, threshold=None):
         if self.best_genome is None:
-            raise RuntimeError("No best genome available")
+            raise RuntimeError("No best genome")
 
         score, _ = self.evaluate_genome_multiple(
             self.best_genome, env_factory, max_steps, n_eval
@@ -355,7 +301,7 @@ class EvolutionTrainer:
         if threshold is not None and score < threshold:
             return False, score
 
-        # salvar genoma como ficheiro numpy (.npy)
-        np.save(path, self.best_genome)
-
+        model = self.model_builder()
+        set_weights_vector(model, self.best_genome)
+        model.save(path)
         return True, score
