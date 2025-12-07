@@ -1,6 +1,11 @@
-# algorithms/genetic.py
+# algorithms/genetic.py 
+
 import numpy as np
 import random
+
+# ===============================================================
+# PESOS
+# ===============================================================
 
 def get_weights_vector(model):
     weights = model.get_weights()
@@ -8,58 +13,98 @@ def get_weights_vector(model):
         raise ValueError("Model has no weights.")
     return np.concatenate([w.flatten() for w in weights])
 
+
 def set_weights_vector(model, flat):
     if flat is None:
         return
     shapes = [w.shape for w in model.get_weights()]
+
     new_weights = []
     idx = 0
     for shp in shapes:
         size = int(np.prod(shp))
-        block = flat[idx:idx+size].reshape(shp)
+        block = flat[idx:idx + size].reshape(shp)
         new_weights.append(block)
         idx += size
+
     model.set_weights(new_weights)
+
+
+# ===============================================================
+# NOVELTY SEARCH
+# ===============================================================
 
 def euclidean(a, b):
     return np.linalg.norm(a - b)
 
-def novelty_score(bc, population_bcs, archive, k=10):
+
+def novelty_score(bc, pop_bcs, archive, k=10):
     if bc is None:
         return 0.0
-    all_bcs = [x for x in population_bcs if x is not None] + [x for x in archive if x is not None]
+
+    all_bcs = [x for x in pop_bcs if x is not None] + \
+              [x for x in archive if x is not None]
+
     if len(all_bcs) == 0:
         return 0.0
+
     dists = [euclidean(bc, x) for x in all_bcs]
     dists.sort()
     k = min(k, len(dists))
+
     return float(np.mean(dists[:k]))
 
-def mutate_gaussian(weights, mutation_rate=0.05, sigma=0.3):
-    mask = np.random.rand(len(weights)) < mutation_rate
-    noise = np.random.normal(0, sigma, size=len(weights))
-    w = weights.copy()
-    w[mask] += noise[mask]
-    return w
+
+# ===============================================================
+# GENETIC OPERATORS
+# ===============================================================
+
+def mutate_gaussian_adaptive(w, base_rate=0.06, sigma=0.25, scale=1.0):
+    """
+    Mutação adaptativa: elites têm scale < 1, ruins têm scale > 1.
+    """
+    rate = base_rate * scale
+    mask = np.random.rand(len(w)) < rate
+    noise = np.random.normal(0, sigma * scale, size=len(w))
+
+    new = w.copy()
+    new[mask] += noise[mask]
+    return new
+
 
 def crossover_uniform(p1, p2):
     mask = np.random.rand(len(p1)) < 0.5
     return np.where(mask, p1, p2)
 
+
 def crossover_one_point(p1, p2):
     point = np.random.randint(1, len(p1)-1)
     return np.concatenate([p1[:point], p2[point:]])
 
-def crossover_blend(p1, p2, alpha=0.4):
+
+def crossover_blend_safe(p1, p2, alpha=0.4):
+    """
+    Versão segura: evita explosão de pesos.
+    """
     low = np.minimum(p1, p2)
     high = np.maximum(p1, p2)
     diff = high - low
+
     min_range = low - alpha * diff
     max_range = high + alpha * diff
-    return np.random.uniform(min_range, max_range)
+
+    child = np.random.uniform(min_range, max_range)
+
+    # clip seguro para evitar saturação do tanh
+    return np.clip(child, -3.0, 3.0)
+
 
 def pick_crossover():
-    ops = [(crossover_uniform, 0.4), (crossover_one_point, 0.2), (crossover_blend, 0.4)]
+    ops = [
+        (crossover_uniform,      0.45),
+        (crossover_one_point,    0.20),
+        (crossover_blend_safe,   0.35)
+    ]
     r = random.random()
     acc = 0.0
     for op, p in ops:
@@ -68,74 +113,120 @@ def pick_crossover():
             return op
     return crossover_uniform
 
-def select_parents(population, scores, n_parents):
+
+# ===============================================================
+# SELEÇÃO
+# ===============================================================
+
+def select_parents(pop, scores, n_parents):
+    """
+    Torneio NEAT-style: robusto e estável.
+    """
     parents = []
-    size = len(population)
+    N = len(pop)
+
     for _ in range(n_parents):
-        i, j = np.random.randint(0, size, 2)
+        i, j = np.random.randint(0, N, 2)
         if scores[i] > scores[j]:
-            parents.append(population[i])
+            parents.append(pop[i])
         else:
-            parents.append(population[j])
+            parents.append(pop[j])
+
     return parents
 
+
+# ===============================================================
+# TRAINER
+# ===============================================================
+
 class GeneticNoveltyTrainer:
-    def __init__(self, model_builder, pop_size=50, archive_prob=0.1, elite_fraction=0.05, seed=42):
+    def __init__(self, model_builder, pop_size=50,
+                 archive_prob=0.1, elite_fraction=0.05, seed=42):
+
         random.seed(seed)
+
         self.model_builder = model_builder
         self.pop_size = pop_size
         self.archive_prob = archive_prob
         self.elite_n = max(1, int(pop_size * elite_fraction))
         self.archive = []
-        temp_model = self.model_builder()
-        dim = len(get_weights_vector(temp_model))
-        self.population = [np.random.normal(0, 1, size=dim) for _ in range(pop_size)]
+
+        # modelo temporário só para conhecer o tamanho do genoma
+        temp = self.model_builder()
+        dim = len(get_weights_vector(temp))
+
+        # população inicial
+        self.population = [
+            np.random.normal(0, 1, size=dim) for _ in range(pop_size)
+        ]
 
     def evolve(self, behaviours, fitnesses=None, alpha=0.7):
         """
-        behaviours: list of BC arrays
-        fitnesses: optional list of floats (not normalized) -> used to combine with novelty
-        alpha: weight for novelty in combined score (0..1). combined = alpha*novelty + (1-alpha)*fitness_norm
-        Returns: (mean_novelty, max_novelty)
+        behaviours: lista de BCs (ou None)
+        fitnesses: lista de fitness (pode ser None)
+        alpha: peso da novidade no score final
         """
-        novelty_scores = [novelty_score(b, behaviours, self.archive, k=10) for b in behaviours]
 
-        # normalize fitnesses to [0,1] if provided
+        # novelty
+        novelty_arr = np.array([
+            novelty_score(b, behaviours, self.archive, k=10)
+            for b in behaviours
+        ])
+
+        # fitness normalizado
         if fitnesses is not None:
-            arr = np.array(fitnesses, dtype=np.float32)
-            # some fitnesses can be negative; shift
-            mn, mx = float(arr.min()), float(arr.max())
+            F = np.array(fitnesses, dtype=np.float32)
+            mn, mx = float(F.min()), float(F.max())
             if mx - mn > 1e-8:
-                fitness_norm = (arr - mn) / (mx - mn)
+                fit_norm = (F - mn) / (mx - mn)
             else:
-                fitness_norm = np.zeros_like(arr)
+                fit_norm = np.zeros_like(F)
         else:
-            fitness_norm = np.zeros(len(novelty_scores), dtype=np.float32)
+            fit_norm = np.zeros(len(novelty_arr))
 
-        # combined scores for selection
-        novelty_arr = np.array(novelty_scores, dtype=np.float32)
-        combined = alpha * novelty_arr + (1.0 - alpha) * fitness_norm
+        # score final
+        combined = alpha * novelty_arr + (1 - alpha) * fit_norm
 
-        # elitism by novelty (keep most novel to preserve archive exploration)
-        idx_sorted = np.argsort(novelty_arr)[::-1]
-        elites = [self.population[i] for i in idx_sorted[:self.elite_n]]
+        # -----------------------------------------------------------
+        # Elitismo — agora baseado no *score final*, não só novelty
+        # -----------------------------------------------------------
+        elite_idx = np.argsort(combined)[::-1][:self.elite_n]
+        elites = [self.population[i].copy() for i in elite_idx]
 
-        # parent selection uses combined score (tournament)
-        parents = select_parents(self.population, combined, n_parents=self.pop_size)
+        # Seleção de pais por torneio
+        parents = select_parents(self.population, combined, self.pop_size)
 
-        new_population = elites.copy()
-        while len(new_population) < self.pop_size:
+        # -----------------------------------------------------------
+        # Nova geração
+        # -----------------------------------------------------------
+        new_pop = elites.copy()
+
+        while len(new_pop) < self.pop_size:
             p1, p2 = random.sample(parents, 2)
+
             op = pick_crossover()
             child = op(p1, p2)
-            child = mutate_gaussian(child, mutation_rate=0.07, sigma=0.25)
-            new_population.append(child)
 
-        # update archive probabilistically
+            # mutação adaptativa:
+            # elites → scale = 0.3 (mais leve)
+            # baixo score → scale = 1.5
+            child_score = float(np.mean([combined[np.argmax(combined)]]))
+
+            if child_score > np.percentile(combined, 75):
+                scale = 0.3
+            elif child_score < np.percentile(combined, 25):
+                scale = 1.5
+            else:
+                scale = 1.0
+
+            child = mutate_gaussian_adaptive(child, scale=scale)
+            new_pop.append(child)
+
+        # update archive
         for bc in behaviours:
             if bc is not None and random.random() < self.archive_prob:
                 self.archive.append(bc.copy())
 
-        self.population = new_population
+        self.population = new_pop
 
         return float(novelty_arr.mean()), float(novelty_arr.max())

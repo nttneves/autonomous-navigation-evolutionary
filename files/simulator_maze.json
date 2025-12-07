@@ -1,6 +1,6 @@
 {
     "ambiente": "labirinto",
-    "dificuldade": 0,
+    "dificuldade": 2,
     "max_steps": 400,
 
     "agentes": [
