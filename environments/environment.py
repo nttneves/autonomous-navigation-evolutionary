@@ -102,48 +102,21 @@ class Enviroment(ABC):
 
     def observacaoPara(self, agente: Agent):
         ax, ay = agente.posicao
-        bx, by = self.goal_pos
-        w, h = self.tamanho
         max_r = agente.sensors_range if hasattr(agente, "sensors_range") else 5
 
         rf_dirs = [
-            (0, -1),  # 1. N
-            (1, 0),   # 2. E
-            (0, 1),   # 3. S
-            (-1, 0),  # 4. O
-            (1, -1),  # 5. NE
-            (1, 1),   # 6. SE
-            (-1, 1),  # 7. SO (ADICIONADO)
-            (-1, -1), # 8. NO 
+            (0, -1),
+            (1, 0),
+            (0, 1),
+            (-1, 0),
+            (1, -1),
+            (-1, -1),
         ]
 
         ranges = [self._ray_distance(ax, ay, dx, dy, max_r) for dx, dy in rf_dirs]
+        radar = self._radar_quadrants(agente)
 
-        # a) Posição Normalizada (2 valores)
-        pos_x_norm = ax / max(1, w - 1)
-        pos_y_norm = ay / max(1, h - 1)
-        # b) Distância ao Objetivo Normalizada (1 valor)
-        euclid_dist = math.hypot(ax - bx, ay - by)
-        max_map_dist = math.hypot(w - 1, h - 1)
-        dist_norm = euclid_dist / max(1.0, max_map_dist)
-        # c) Diferença de Coordenadas Y Normalizada (1 valor)
-        # (Usado como proxy para a direção vertical do objetivo)
-        delta_y_norm = (by - ay) / max(1, h)
-
-        observation_vector = np.concatenate([
-            np.array(ranges, dtype=np.float32),      # 8 valores
-            np.array([pos_x_norm], dtype=np.float32),# 1 valor
-            np.array([pos_y_norm], dtype=np.float32),# 1 valor
-            np.array([dist_norm], dtype=np.float32), # 1 valor
-            np.array([delta_y_norm], dtype=np.float32) # 1 valor
-        ])
-
-        return observation_vector
-
-        ##radar = self._radar_quadrants(agente)
-
-        #return {"ranges": ranges, "radar": radar, "posicao": agente.posicao, "tamanho": self.tamanho}
-        #return {"ranges": ranges, "radar": radar}
+        return {"ranges": ranges, "radar": radar}
 
     # ================================================================
     # Movimento genérico (igual Maze/Farol)
@@ -154,25 +127,21 @@ class Enviroment(ABC):
         dx, dy = ACTION_TO_DELTA[accao]
         nx, ny = x + dx, y + dy
 
-        #reward = 0.0
+        reward = 0.0
         done = False
-        inff={}
 
         if not self._in_bounds(nx, ny) or self.mapa_estado[ny, nx] == PAREDE:
-            #reward -= 0.01
-            inff["collision"] = True
+            reward -= 0.01
             nx, ny = x, y
         else:
             self.posicoes_agentes[agente.id] = (nx, ny)
             agente.posicao = (nx, ny)
 
         if (nx, ny) == self.goal_pos:
-            #reward += 1.0
-            inff["reached_beacon"] = True
+            reward += 1.0
             done = True
 
-        #return reward, done, {}
-        return 0.0, done, inff
+        return reward, done, {}
 
     # ================================================================
     # Fim de episódio
