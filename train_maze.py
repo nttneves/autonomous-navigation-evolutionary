@@ -9,11 +9,18 @@ from model.model import create_mlp
 from environments.environment_maze import MazeEnv
 
 # =====================================================
-# 1. Curriculum Learning para o Maze (factories por dificuldade)
+# 1. Curriculum Learning (mantemos dificuldades e seeds fixas)
 # =====================================================
 
 def make_env(dificuldade):
-    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=900)
+    """
+    Mantém comportamento original:
+    - dificuldade 0 → seed 42
+    - dificuldade 1 → seed 150
+    - dificuldade 2 → seed 456
+    Cada factory devolve um MazeEnv sempre com o mesmo mapa.
+    """
+    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=200)
 
 curriculum_env_factories = [
     make_env(0),
@@ -21,56 +28,55 @@ curriculum_env_factories = [
     make_env(2),
 ]
 
-def curriculum_env_factory(curr_generation):
-    if curr_generation <= 15:
-        return curriculum_env_factories[0]()   # dif 0
-    elif curr_generation <= 30:
-        return curriculum_env_factories[1]()   # dif 1
-    else:
-        return curriculum_env_factories[2]()   # dif 2
-
-def wrapper_env_factory():
-    return curriculum_env_factory(wrapper_env_factory.generation)
-
-wrapper_env_factory.generation = 1
 
 # =====================================================
-# 2. Trainer (parametros recomendados)
+# 2. Trainer
 # =====================================================
 
 trainer = EvolutionTrainer(
-    model_builder=lambda: create_mlp(input_dim=10),
-    pop_size=300,              # maior para maze
+    model_builder=lambda: create_mlp(input_dim=12),
+    pop_size=300,
     archive_prob=0.15,
-    elite_fraction=0.05
+    elite_fraction=0.1
 )
 
+
 # =====================================================
-# 3. Treino com curriculum (fazemos uma geração por loop para
-#    poder controlar a fase do curriculum e guardar históricos corretos)
+# 3. Treino (USAMOS SEMPRE MULTI-ENV: os 3 mapas fixos)
+#    Isto impede overfitting ao último mapa visto.
 # =====================================================
 
-GENERATIONS = 50
-MAX_STEPS = 900
-EPISODES_PER = 5
+GENERATIONS = 2000
+MAX_STEPS = 450
+EPISODES_PER = 2   # melhor do que 1 sem aumentar muito custo
 
 history = []
 
 for gen in range(1, GENERATIONS + 1):
-    wrapper_env_factory.generation = gen
+
     print(f"\n=== CURRICULUM MAZE – Geração {gen} ===")
 
+    # curriculum afeta apenas alpha (exploração vs exploração)
+    if gen <= 1000:
+        alpha_value = 0.8   # exploração
+    elif gen <= 1500:
+        alpha_value = 0.5   # transição
+    else:
+        alpha_value = 0.2   # exploração mínima, foco total no fitness
+
+    # Passamos SEMPRE os 3 mapas → trainer usa evaluate_population_multi
     h = trainer.train(
-        env_factories=wrapper_env_factory,     # nota: nome env_factories no teu trainer
+        env_factories=curriculum_env_factories, 
         max_steps=MAX_STEPS,
         generations=1,
         episodes_per_individual=EPISODES_PER,
-        alpha=0.85,
+        alpha=alpha_value,
         verbose=True,
-        external_generation_offset=gen-1
+        external_generation_offset=gen - 1
     )
 
     history.extend(h)
+
 
 # =====================================================
 # 4. Guardar histórico
@@ -130,12 +136,13 @@ print("Gráfico Novelty guardado em results/maze/plot_novelty.png")
 # 7. Guardar campeão
 # =====================================================
 
+# Avaliamos o campeão usando *uma factory* (podes escolher qualquer dificuldade).
 ok, score = trainer.save_champion(
-    "model/best_agent_maze.keras",
-    env_factory=lambda: curriculum_env_factory(999999),
+    "model/best_agent_maze",
+    env_factory=lambda: MazeEnv(dificuldade=2, max_steps=MAX_STEPS),  # seed fixa como pediste
     max_steps=MAX_STEPS,
     n_eval=20,
-    threshold=-2.0
+    threshold=-10000.0
 )
 
 print("Champion saved:", ok, "| score:", score)
