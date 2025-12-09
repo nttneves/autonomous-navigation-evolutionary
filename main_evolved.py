@@ -32,7 +32,7 @@ if __name__ == "__main__":
     print("Modelo carregado com sucesso!")
 
     # Criar ambiente Maze
-    env = MazeEnv(dificuldade=2, max_steps=1000)
+    env = MazeEnv(dificuldade=1, max_steps=1000)
     sim = Simulator(env, max_steps=400)
     sim.agentes[agent.id] = agent
 

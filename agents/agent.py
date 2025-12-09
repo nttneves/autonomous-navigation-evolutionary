@@ -28,7 +28,6 @@ class Agent(ABC):
 
         return cls(
             id=data["id"],
-            politica=data.get("politica"),
             sensores=data.get("sensores", True)
         )
 

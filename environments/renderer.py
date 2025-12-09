@@ -84,7 +84,7 @@ class EnvRenderer:
             )
 
         pygame.display.flip()
-        self.clock.tick(10)  # 10 FPS
+        self.clock.tick(12)  # 10 FPS
 
         return True
 

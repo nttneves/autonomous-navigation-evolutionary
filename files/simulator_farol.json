@@ -5,6 +5,6 @@
     "max_steps": 300,
 
     "agentes": [
-        "files/evolved_agent.json"
+        "files/fixed_agent.json"
     ]
 }
