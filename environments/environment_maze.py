@@ -2,6 +2,8 @@
 from environments.environment import Enviroment, VAZIO, PAREDE, GOAL
 import numpy as np
 import random
+import agents.agent as Agent
+import math
 
 class MazeEnv(Enviroment):
 
@@ -47,3 +49,46 @@ class MazeEnv(Enviroment):
         maze[h-1,1] = maze[h-2,1] = maze[h-1,2] = VAZIO
 
         return maze, goal_pos
+    
+
+    def observacaoPara(self, agente: Agent):
+        ax, ay = agente.posicao
+        bx, by = self.goal_pos
+        w, h = self.tamanho
+        max_r = agente.sensors_range if hasattr(agente, "sensors_range") else 5
+
+        rf_dirs = [
+            (0, -1),  # 1. N
+            (1, 0),   # 2. E
+            (0, 1),   # 3. S
+            (-1, 0),  # 4. O
+            (1, -1),  # 5. NE
+            (1, 1),   # 6. SE
+            (-1, 1),  # 7. SO
+            (-1, -1), # 8. NO 
+        ]
+
+        ranges = [self._ray_distance(ax, ay, dx, dy, max_r) for dx, dy in rf_dirs]
+
+        # a) Posição Normalizada (2 valores)
+        pos_x_norm = ax / max(1, w - 1)
+        pos_y_norm = ay / max(1, h - 1)
+        # b) Distância ao Objetivo Normalizada (1 valor)
+        euclid_dist = math.hypot(ax - bx, ay - by)
+        max_map_dist = math.hypot(w - 1, h - 1)
+        dist_norm = euclid_dist / max(1.0, max_map_dist)
+        # c) Diferença de Coordenadas Y Normalizada (1 valor)
+        # (Usado como proxy para a direção vertical do objetivo)
+        delta_y_norm = (by - ay) / max(1, h-1)
+        #delta_x_norm = (bx - ax) / max(1, w)
+
+        observation_vector = np.concatenate([
+            np.array(ranges, dtype=np.float32),      # 8 valores
+            np.array([pos_x_norm], dtype=np.float32),# 1 valor
+            np.array([pos_y_norm], dtype=np.float32),# 1 valor
+            np.array([dist_norm], dtype=np.float32), # 1 valor
+            np.array([delta_y_norm], dtype=np.float32), # 1 valor
+           
+        ])
+
+        return observation_vector

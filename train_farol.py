@@ -1,18 +1,18 @@
-# train_farol.py
 import json
 import numpy as np
 import matplotlib.pyplot as plt
 from algorithms.trainer import EvolutionTrainer
 from model.model import create_mlp
+import os
 from environments.environment_farol import FarolEnv
 import random
 
-# =====================================================
-# 1. Curriculum Learning: lista de fábricas de ambientes
-# =====================================================
+# ============================================================
+# 1. DEFINIÇÃO DOS MAPAS DA CURRICULUM
+# ============================================================
 
-def make_env(dificuldade, seed):
-    """Devolve ambiente Farol com seed fixa."""
+def make_env(seed, dificuldade):
+    """Cria um ambiente Farol com tamanho fixo mas layout dependente da seed."""
     return lambda: FarolEnv(
         tamanho=(50, 50),
         dificuldade=dificuldade,
@@ -20,149 +20,130 @@ def make_env(dificuldade, seed):
         seed=seed
     )
 
-# ---------- curriculum ----------
-curriculum_env_factories = []
+# ---------- FASE 1: mapas simples fixos ----------
+fixed_maps = [make_env(s, dificuldade=1) for s in [101, 202, 303, 404, 505]]
 
-# fase 1 – dificuldade 1
-for s in range(100, 110):
-    curriculum_env_factories.append(make_env(dificuldade=1, seed=s))
+# ---------- FASE 2: 20 mapas semi-aleatórios ----------
+semi_random_maps = [make_env(s, dificuldade=2) for s in range(1000, 1020)]
 
-# fase 2 – dificuldade 2
-for s in range(200, 210):
-    curriculum_env_factories.append(make_env(dificuldade=2, seed=s))
+# ---------- FASE 3: mapas totalmente aleatórios ----------
+def fully_random_env():
+    seed = random.randint(10000, 99999)
+    dificuldade = random.choice([2, 3])
+    return FarolEnv(
+        tamanho=(50, 50),
+        dificuldade=dificuldade,
+        max_steps=300,
+        seed=seed
+    )
 
-# fase 3 – dificuldade 3
-for s in range(300, 310):
-    curriculum_env_factories.append(make_env(dificuldade=3, seed=s))
 
-# shuffle opcional
-random.shuffle(curriculum_env_factories)
-
-
-# =====================================================
-# 2. Função para escolher ambiente consoante a geração
-# =====================================================
+# ============================================================
+# 2. FUNÇÃO DE CURRICULUM LEARNING
+# ============================================================
 
 def curriculum_env_factory(generation):
     """
-    Seleciona um ambiente baseado na fase do treino.
-    Faz isto:
-    - Geração 1–10   → dificuldade 1
-    - Geração 11–20  → dificuldade 2
-    - Geração 21–30  → dificuldade 3
-    Depois mistura tudo livremente.
+    Retorna um ambiente dependendo da fase do treino.
     """
-    if generation <= 10:
-        pool = curriculum_env_factories[0:10]
-    elif generation <= 20:
-        pool = curriculum_env_factories[10:20]
-    elif generation <= 30:
-        pool = curriculum_env_factories[20:30]
+    if generation <= 20:
+        # Fase 1 — só mapas fixos → rápido e estável
+        return random.choice(fixed_maps)()
+
+    elif generation <= 60:
+        # Fase 2 — mistura mapas fixos e semi-aleatórios
+        pool = fixed_maps + semi_random_maps
+        return random.choice(pool)()
+
     else:
-        pool = curriculum_env_factories  # mistura geral
+        # Fase 3 — mapas totalmente aleatórios
+        return fully_random_env()
 
-    return random.choice(pool)()
 
-
-# precisamos disto para passar ao trainer
+# Wrapper preciso para o EvolutionTrainer
 def wrapper_env_factory():
-    """Wrapper neutro: trainer só chama esta função."""
     return curriculum_env_factory(wrapper_env_factory.generation)
 
-wrapper_env_factory.generation = 1  # atributo dinâmico
+wrapper_env_factory.generation = 1
 
 
-# =====================================================
-# 3. Criar trainer
-# =====================================================
+# ============================================================
+# 3. CRIAR TRAINER EVOLUTIVO
+# ============================================================
 
 trainer = EvolutionTrainer(
-    model_builder=lambda: create_mlp(input_dim=10),
-    pop_size=120,            # maior para generalização
+    model_builder=lambda: create_mlp(input_dim=8),  # 8 radares + 4 features
+    pop_size=200,
     archive_prob=0.15,
     elite_fraction=0.05
 )
 
-# =====================================================
-# 4. Treino com curriculum
-# =====================================================
 
+# ============================================================
+# 4. CICLO DE TREINO
+# ============================================================
+
+GENERATIONS = 200
+MAX_STEPS = 350
 history = []
-
-GENERATIONS = 35
-MAX_STEPS = 250
 
 for gen in range(1, GENERATIONS + 1):
     wrapper_env_factory.generation = gen
-    print(f"\n=== CURRICULUM – Geração {gen} ===")
+    print(f"\n=== Geração {gen} ===")
 
     h = trainer.train(
         env_factories=wrapper_env_factory,
         max_steps=MAX_STEPS,
         generations=1,
-        episodes_per_individual=3,
-        alpha=0.9,
+        episodes_per_individual=1,   # como pediste
+        alpha=0.6,
         verbose=True,
-        external_generation_offset=gen-1    # <-- AQUI
+        external_generation_offset=gen - 1
     )
 
     history.extend(h)
 
 
-# =====================================================
-# 5. Guardar histórico
-# =====================================================
+# ============================================================
+# 5. GUARDAR HISTÓRICO
+# ============================================================
+
+os.makedirs("results/farol", exist_ok=True)
 
 with open("results/farol/history_farol.json", "w") as f:
     json.dump(history, f, indent=4)
 
 print("Histórico guardado em results/farol/history_farol.json")
 
-# =====================================================
-# 6. Curva de aprendizagem
-# =====================================================
 
-gens       = [h["generation"] for h in history]
-mean_fit   = [h["mean_fitness"] for h in history]
-max_fit    = [h["max_fitness"] for h in history]
-mean_nov   = [h["mean_novelty"] for h in history]
-max_nov    = [h["max_novelty"] for h in history]
+# ============================================================
+# 6. PLOTS
+# ============================================================
+
+gens     = [h["generation"] for h in history]
+mean_fit = [h["mean_fitness"] for h in history]
+max_fit  = [h["max_fitness"] for h in history]
 
 plt.figure(figsize=(10,5))
 plt.plot(gens, mean_fit, label="Mean Fitness", linewidth=2)
 plt.plot(gens, max_fit, label="Max Fitness", linewidth=2)
 plt.xlabel("Generation")
 plt.ylabel("Fitness")
-plt.title("Learning Curve – Fitness")
+plt.title("Learning Curve — Fitness")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
 plt.savefig("results/farol/plot_fitness.png", dpi=300)
 plt.close()
 
-print("Curva guardada em results/farol/plot_fitness.png")
 
-plt.figure(figsize=(10,5))
-plt.plot(gens, mean_nov, label="Mean Novelty", linewidth=2)
-plt.plot(gens, max_nov, label="Max Novelty", linewidth=2)
-plt.xlabel("Generation")
-plt.ylabel("Novelty")
-plt.title("Learning Curve – Novelty")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.savefig("results/farol/plot_novelty.png", dpi=300)
-plt.close()
-
-print("Gráfico Novelty guardado em results/farol/plot_novelty.png")
-
-# =====================================================
-# 7. Guardar campeão
-# =====================================================
+# ============================================================
+# 7. GUARDAR CAMPEÃO
+# ============================================================
 
 ok, score = trainer.save_champion(
-    "model/best_agent_farol_curriculum.keras",
-    env_factory=lambda: curriculum_env_factory(99999),
+    "model/best_agent_farol",
+    env_factory=lambda: curriculum_env_factory(9999),
     max_steps=MAX_STEPS,
     n_eval=20,
     threshold=-0.5

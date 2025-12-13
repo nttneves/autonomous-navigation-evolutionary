@@ -3,6 +3,7 @@ import numpy as np
 
 from simulator.simulator import Simulator
 from environments.environment_maze import MazeEnv
+from environments.environment_farol import FarolEnv
 from agents.evolved_agent import EvolvedAgent
 from model.model import create_mlp
 from algorithms.genetic import set_weights_vector
@@ -10,7 +11,8 @@ from algorithms.genetic import set_weights_vector
 # ============================================
 # Carregar modelo salvo (.npy com vetor de pesos)
 # ============================================
-def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
+#input_dim= 8 farol == 12 maze
+def load_model_and_agent(path, input_dim=8, hidden_units=32, outputs=4):
     genome = np.load(path)  # retorna ndarray
     model = create_mlp(input_dim=input_dim, hidden_units=hidden_units, outputs=outputs)
     set_weights_vector(model, genome)  # aplica ao modelo
@@ -21,7 +23,8 @@ def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
 # MAIN
 # ============================================
 if __name__ == "__main__":
-    path = "model/best_agent_maze.npy"  # atenção: .npy, não .npz
+    # path = "model/best_agent_maze.npy"  # atenção: .npy, não .npz
+    path = "model/best_agent_farol.npy"
 
     try:
         agent = load_model_and_agent(path)
@@ -31,8 +34,7 @@ if __name__ == "__main__":
 
     print("Modelo carregado com sucesso!")
 
-    # Criar ambiente Maze
-    env = MazeEnv(dificuldade=1, max_steps=1000)
+    env = FarolEnv(tamanho = (50,50), dificuldade=1, max_steps=350)
     sim = Simulator(env, max_steps=400)
     sim.agentes[agent.id] = agent
 

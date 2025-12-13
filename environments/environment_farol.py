@@ -2,6 +2,7 @@
 from environments.environment import Enviroment, VAZIO, PAREDE, GOAL
 import random
 import numpy as np
+import agents.agent as Agent
 
 
 class FarolEnv(Enviroment):
@@ -58,3 +59,22 @@ class FarolEnv(Enviroment):
             mapa[y, x] = PAREDE
 
         return mapa, goal_pos
+    
+    def observacaoPara(self, agente: Agent):
+        ax, ay = agente.posicao
+        bx, by = self.goal_pos
+
+        dx = bx - ax
+        dy = by - ay
+
+        ang = np.arctan2(dy, dx)  # [-pi, pi]
+        if ang < 0:
+            ang += 2 * np.pi
+
+        # setor 0–7
+        sector = int((ang / (2 * np.pi)) * 8)
+
+        obs = np.zeros(8, dtype=np.float32)
+        obs[sector] = 1.0
+
+        return obs

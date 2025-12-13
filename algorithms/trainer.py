@@ -86,28 +86,52 @@ class EvolutionTrainer:
             pos_now = env.get_posicao_agente(agent) or (px, py)
             x, y = pos_now
 
-            # Shaping específico para Maze
+            # ----------------------------------------------------
+            # SHAPING MAZE (ambiente discreto com paredes densas)
+            # ----------------------------------------------------
             if is_maze:
-                reward -= 0.5
+                reward -= 5   # mantém movimento eficiente
 
                 if info.get("collision", False):
                     reward -= 10.0
                 else:
                     if pos_now not in visited:
                         new_dist = hypot(x - bx, y - by)
-                        delta = max(0, prev_dist - new_dist)
-                        reward += delta * 5.0
-                        prev_dist = new_dist
+                        delta = prev_dist - new_dist
+
+                        if delta > 0:
+                            reward += delta * 10.0
+                            prev_dist = new_dist
+
                         reward += 10.0
                         visited.add(pos_now)
 
-                if pos_now == (bx, by) or info.get("reached_beacon", False):
+                if pos_now == (bx, by):
                     reward += 1000.0
                     done = True
+
+            # ----------------------------------------------------
+            # SHAPING FAROL (ambiente aberto)
+            # ----------------------------------------------------
             else:
-                new_dist = hypot(x - bx, y - by)
-                reward += (prev_dist - new_dist) * 5.0
-                prev_dist = new_dist
+                if info.get("collision", False):
+                    reward -= 5.0
+                else:
+                    new_dist = hypot(x - bx, y - by)
+                    delta = prev_dist - new_dist
+
+                    if delta > 0:
+                        reward += delta * 10.0
+                    else:
+                        reward += delta * 50.0
+
+                    prev_dist = new_dist
+
+                reward -= 5.0  # penalização leve por cada passo
+
+                if pos_now == (bx, by):
+                    reward += 1000.0
+                    done = True
 
             total_reward += reward
             agent.avaliacaoEstadoAtual(reward)
