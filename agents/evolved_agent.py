@@ -54,8 +54,6 @@ class EvolvedAgent(Agent):
         if obs is None:
             return np.zeros(self.dim_input_rn, dtype=np.float32)
         
-        # O 'obs' JÁ É o array 1D com 12 valores.
-        # NENHUMA CONVERSÃO É NECESSÁRIA.
         return obs
 
     # ============================================================

@@ -72,7 +72,7 @@ wrapper_env_factory.generation = 1
 # ============================================================
 
 trainer = EvolutionTrainer(
-    model_builder=lambda: create_mlp(input_dim=8),  # 8 radares + 4 features
+    model_builder=lambda: create_mlp(input_dim=12),  # 8 radares + 4 features
     pop_size=200,
     archive_prob=0.15,
     elite_fraction=0.05

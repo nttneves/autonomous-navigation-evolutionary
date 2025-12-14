@@ -12,15 +12,16 @@ from environments.environment_maze import MazeEnv
 # 1. Curriculum Learning (mantemos dificuldades e seeds fixas)
 # =====================================================
 
+MAX_STEPS_BY_DIFF = {
+    0: 100,     
+    1: 200,  
+    2: 500    
+}
+
 def make_env(dificuldade):
-    """
-    Mantém comportamento original:
-    - dificuldade 0 → seed 42
-    - dificuldade 1 → seed 150
-    - dificuldade 2 → seed 456
-    Cada factory devolve um MazeEnv sempre com o mesmo mapa.
-    """
-    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=200)
+    return lambda: MazeEnv(
+        dificuldade=dificuldade, max_steps=MAX_STEPS_BY_DIFF[dificuldade]
+    )
 
 curriculum_env_factories = [
     make_env(0),
@@ -47,7 +48,6 @@ trainer = EvolutionTrainer(
 # =====================================================
 
 GENERATIONS = 2000
-MAX_STEPS = 450
 EPISODES_PER = 2   # melhor do que 1 sem aumentar muito custo
 
 history = []
@@ -67,7 +67,7 @@ for gen in range(1, GENERATIONS + 1):
     # Passamos SEMPRE os 3 mapas → trainer usa evaluate_population_multi
     h = trainer.train(
         env_factories=curriculum_env_factories, 
-        max_steps=MAX_STEPS,
+        max_steps=MAX_STEPS_BY_DIFF[2],
         generations=1,
         episodes_per_individual=EPISODES_PER,
         alpha=alpha_value,
@@ -139,8 +139,8 @@ print("Gráfico Novelty guardado em results/maze/plot_novelty.png")
 # Avaliamos o campeão usando *uma factory* (podes escolher qualquer dificuldade).
 ok, score = trainer.save_champion(
     "model/best_agent_maze",
-    env_factory=lambda: MazeEnv(dificuldade=2, max_steps=MAX_STEPS),  # seed fixa como pediste
-    max_steps=MAX_STEPS,
+    env_factory=lambda: MazeEnv(dificuldade=2, max_steps=MAX_STEPS_BY_DIFF[2]),  # seed fixa como pediste
+    max_steps=MAX_STEPS_BY_DIFF[2],
     n_eval=20,
     threshold=-10000.0
 )
