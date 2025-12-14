@@ -88,8 +88,7 @@ Gerencia o processo de treino:
 Para facilitar a aprendizagem, o treino usa curriculum learning:
 
 **Maze**:
-- Episódios 1-1000: Dificuldades 0 e 1 (12x12 e 20x20)
-- Episódios 1001+: Todas as dificuldades (inclui 30x30)
+- Todas as épocas: Dificuldades 0 e 1 (12x12 e 20x20)
 
 **Farol**:
 - Episódios 1-1000: Dificuldades 1 e 2
