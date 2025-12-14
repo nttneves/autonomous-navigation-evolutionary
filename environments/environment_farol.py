@@ -62,19 +62,40 @@ class FarolEnv(Enviroment):
     
     def observacaoPara(self, agente: Agent):
         ax, ay = agente.posicao
-        bx, by = self.goal_pos
+        max_r = self.range_max
 
-        dx = bx - ax
-        dy = by - ay
+        # --------------------------------------------------
+        # 1) Ray sensors (paredes) — 8 direções
+        # --------------------------------------------------
+        rf_dirs = [
+            (0, -1),   # N
+            (1, 0),    # E
+            (0, 1),    # S
+            (-1, 0),   # W
+            (1, -1),   # NE
+            (1, 1),    # SE
+            (-1, 1),   # SW
+            (-1, -1),  # NW
+        ]
 
-        ang = np.arctan2(dy, dx)  # [-pi, pi]
-        if ang < 0:
-            ang += 2 * np.pi
+        ranges = [
+            self._ray_distance(ax, ay, dx, dy, max_r)
+            for dx, dy in rf_dirs
+        ]
 
-        # setor 0–7
-        sector = int((ang / (2 * np.pi)) * 8)
+        ranges = np.array(ranges, dtype=np.float32)  # 8 valores
 
-        obs = np.zeros(8, dtype=np.float32)
-        obs[sector] = 1.0
+        # --------------------------------------------------
+        # 2) Radar direcional do farol — 4 quadrantes
+        # --------------------------------------------------
+        radar = np.array(
+            self._radar_quadrants(agente),
+            dtype=np.float32
+        )  # 4 valores
 
-        return obs
+        # --------------------------------------------------
+        # 3) Observação final
+        # --------------------------------------------------
+        observation = np.concatenate([ranges, radar])
+
+        return observation

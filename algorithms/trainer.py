@@ -79,7 +79,7 @@ class EvolutionTrainer:
         is_maze = "maze" in env.__class__.__name__.lower()
         visited = {start_pos}
 
-        while steps < max_steps and not done:
+        while steps < env.max_steps and not done:
             action = agent.age()
             reward, done, info = env.agir(action, agent)
 
@@ -107,7 +107,7 @@ class EvolutionTrainer:
                         visited.add(pos_now)
 
                 if pos_now == (bx, by):
-                    reward += 1000.0
+                    reward += 1000.0 + (env.max_steps - (steps + 1)) * 2.0
                     done = True
 
             # ----------------------------------------------------
@@ -130,7 +130,7 @@ class EvolutionTrainer:
                 reward -= 5.0  # penalização leve por cada passo
 
                 if pos_now == (bx, by):
-                    reward += 1000.0
+                    reward += 1000.0 + (env.max_steps - (steps + 1)) * 2.0
                     done = True
 
             total_reward += reward

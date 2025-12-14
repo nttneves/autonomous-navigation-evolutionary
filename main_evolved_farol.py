@@ -11,8 +11,7 @@ from algorithms.genetic import set_weights_vector
 # ============================================
 # Carregar modelo salvo (.npy com vetor de pesos)
 # ============================================
-#input_dim= 8 farol == 12 maze
-def load_model_and_agent(path, input_dim=8, hidden_units=32, outputs=4):
+def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
     genome = np.load(path)  # retorna ndarray
     model = create_mlp(input_dim=input_dim, hidden_units=hidden_units, outputs=outputs)
     set_weights_vector(model, genome)  # aplica ao modelo
