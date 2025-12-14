@@ -83,7 +83,7 @@ trainer = EvolutionTrainer(
 # 4. CICLO DE TREINO
 # ============================================================
 
-GENERATIONS = 200
+GENERATIONS = 700
 MAX_STEPS = 350
 history = []
 
@@ -123,18 +123,39 @@ print("Histórico guardado em results/farol/history_farol.json")
 gens     = [h["generation"] for h in history]
 mean_fit = [h["mean_fitness"] for h in history]
 max_fit  = [h["max_fitness"] for h in history]
+mean_nov = [h["mean_novelty"] for h in history]
+max_nov  = [h["max_novelty"] for h in history]
 
 plt.figure(figsize=(10,5))
 plt.plot(gens, mean_fit, label="Mean Fitness", linewidth=2)
 plt.plot(gens, max_fit, label="Max Fitness", linewidth=2)
 plt.xlabel("Generation")
 plt.ylabel("Fitness")
-plt.title("Learning Curve — Fitness")
+plt.title("Learning Curve - Fitness")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
 plt.savefig("results/farol/plot_fitness.png", dpi=300)
 plt.close()
+
+
+# ============================================================
+# 6b. PLOT NOVELTY
+# ============================================================
+
+plt.figure(figsize=(10,5))
+plt.plot(gens, mean_nov, label="Mean Novelty", linewidth=2)
+plt.plot(gens, max_nov,  label="Max Novelty",  linewidth=2)
+plt.xlabel("Generation")
+plt.ylabel("Novelty")
+plt.title("Learning Curve - Novelty")
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.savefig("results/farol/plot_novelty.png", dpi=300)
+plt.close()
+
+print("Gráfico Novelty guardado em results/farol/plot_novelty.png")
 
 
 # ============================================================
@@ -146,7 +167,7 @@ ok, score = trainer.save_champion(
     env_factory=lambda: curriculum_env_factory(9999),
     max_steps=MAX_STEPS,
     n_eval=20,
-    threshold=-0.5
+    threshold=-10000
 )
 
 print("Champion saved:", ok, "| score:", score)
