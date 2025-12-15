@@ -28,7 +28,6 @@ class FarolEnv(Enviroment):
     def criar_mapa(self):
         w, h = self.tamanho
 
-        # gerador pseudo-aleatório local e isolado
         rng = random.Random(self.seed)
 
         mapa = np.full((h, w), VAZIO, dtype=int)

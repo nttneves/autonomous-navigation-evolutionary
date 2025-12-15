@@ -9,7 +9,6 @@ class EvolvedAgent(Agent):
         super().__init__(id, politica="evolved", sensores=sensores)
         self.dim_input_rn = dim_input_rn
 
-        # cria rede NumPy se não passada (agora 4 outputs)
         self.rede_neuronal = model if model is not None else create_mlp(
             input_dim=dim_input_rn,
             hidden_units=32,
@@ -26,7 +25,6 @@ class EvolvedAgent(Agent):
         dim_input = data.get("dim_input", 12)
         sensores = bool(data["sensores"])
 
-        # cria novo modelo numpy com 4 outputs
         model = create_mlp(input_dim=dim_input, hidden_units=32, outputs=4)
         return cls(
             id=agent_id,

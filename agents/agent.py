@@ -10,7 +10,6 @@ class Agent(ABC):
         self.politica = politica
         self.sensores = sensores
 
-        # range dos sensores (1 = sem sensores, n = distância)
         self.sensors_range = 5 if sensores else 1
 
         self.last_observation = None

@@ -207,9 +207,6 @@ class GeneticNoveltyTrainer:
             op = pick_crossover()
             child = op(p1, p2)
 
-            # mutação adaptativa:
-            # elites → scale = 0.3 (mais leve)
-            # baixo score → scale = 1.5
             child_score = float(np.mean([combined[np.argmax(combined)]]))
 
             if child_score > np.percentile(combined, 75):

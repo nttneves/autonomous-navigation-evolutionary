@@ -22,7 +22,6 @@ def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
 # MAIN
 # ============================================
 if __name__ == "__main__":
-    # path = "model/best_agent_maze.npy"  # atenção: .npy, não .npz
     path = "model/best_agent_farol.npy"
 
     try:
@@ -40,7 +39,6 @@ if __name__ == "__main__":
     # Posição inicial manual
     env.reset()
     start = (1, env.tamanho[1] - 1)
-    #start = ( env.tamanho[1] - 1, 1)
     env.regista_agente(agent, start)
     obs = env.observacaoPara(agent)
     agent.observacao(obs)

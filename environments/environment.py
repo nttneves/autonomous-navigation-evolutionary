@@ -1,4 +1,3 @@
-# environment.py
 from abc import ABC, abstractmethod
 import numpy as np
 from agents.agent import Agent
@@ -6,7 +5,7 @@ import math
 
 VAZIO = 0
 PAREDE = 1
-GOAL  = 2   # farol ou saída são tratados da mesma forma
+GOAL  = 2   
 
 ACTION_TO_DELTA = {
     0: (0, -1),   # up
