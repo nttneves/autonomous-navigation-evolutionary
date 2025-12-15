@@ -9,7 +9,7 @@ from simulator.simulator import Simulator
 # sim = Simulator(env, max_steps=600)
 # sim.agentes = {"rnd": agent}
 
-sim = Simulator.cria("files/simulator_maze.json")
+sim = Simulator.cria("files/simulator_farol.json")
 
 #sim = Simulator.cria("files/simulator_farol.json")
 

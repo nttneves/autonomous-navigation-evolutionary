@@ -76,11 +76,11 @@ history, trained_agent = trainer.train(
     verbose=True
 )
 
-os.makedirs("results/farol", exist_ok=True)
-with open("results/farol/history_qlearning_farol.json", "w") as f:
+os.makedirs("results/farol/train", exist_ok=True)
+with open("results/farol/train/history_qlearning_farol.json", "w") as f:
     json.dump(history, f, indent=4)
 
-print("\nHistórico guardado em results/farol/history_qlearning_farol.json")
+print("\nHistórico guardado em results/farol/train/history_qlearning_farol.json")
 
 if len(history) > 0:
     episodes = [h["episode"] for h in history]
@@ -152,10 +152,10 @@ if len(history) > 0:
     plt.legend()
     
     plt.tight_layout()
-    plt.savefig("results/farol/plot_qlearning_farol.png", dpi=300, bbox_inches='tight')
+    plt.savefig("results/farol/train/plot_qlearning_farol.png", dpi=300, bbox_inches='tight')
     plt.close()
     
-    print("Gráficos guardados em results/farol/plot_qlearning_farol.png")
+    print("Gráficos guardados em results/farol/train/plot_qlearning_farol.png")
     
     print("\n" + "="*60)
     print("ESTATÍSTICAS FINAIS")

@@ -108,12 +108,12 @@ for gen in range(1, GENERATIONS + 1):
 # 5. GUARDAR HISTÓRICO
 # ============================================================
 
-os.makedirs("results/farol", exist_ok=True)
+os.makedirs("results/farol/train", exist_ok=True)
 
-with open("results/farol/history_farol.json", "w") as f:
+with open("results/farol/train/history_farol.json", "w") as f:
     json.dump(history, f, indent=4)
 
-print("Histórico guardado em results/farol/history_farol.json")
+print("Histórico guardado em results/farol/train/history_farol.json")
 
 
 # ============================================================
@@ -133,7 +133,7 @@ plt.title("Learning Curve — Fitness")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("results/farol/plot_fitness.png", dpi=300)
+plt.savefig("results/farol/train/plot_fitness.png", dpi=300)
 plt.close()
 
 

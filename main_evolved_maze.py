@@ -21,19 +21,20 @@ def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
 # MAIN
 # ============================================
 if __name__ == "__main__":
-    path = "model/best_agent_maze.npy"  # atenção: .npy, não .npz
-
-    try:
-        agent = load_model_and_agent(path)
-    except Exception as e:
-        print("Erro ao carregar modelo:", e)
-        sys.exit(1)
-
-    print("Modelo carregado com sucesso!")
+    path = "model/best_agent_maze_2podre.npy"  # atenção: .npy, não .npz
+    path2 = "model/best_agent_maze.npy"
 
     # Criar ambiente Maze
-    env = MazeEnv(dificuldade=2, max_steps=700)
-    sim = Simulator(env, max_steps=700)
+    env = MazeEnv(dificuldade=1, max_steps=1000)
+
+    if(env.dificuldade == 2):
+        agent = load_model_and_agent(path2)
+        print("Modelo carregado com sucesso!")
+    else:
+        agent = load_model_and_agent(path)
+        print("Modelo carregado com sucesso!")
+
+    sim = Simulator(env, max_steps=1000)
     sim.agentes[agent.id] = agent
 
     # Posição inicial manual

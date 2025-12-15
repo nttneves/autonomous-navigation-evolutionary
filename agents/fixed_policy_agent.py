@@ -219,3 +219,13 @@ class FixedPolicyAgent(Agent):
         if self.debug:
             print(f"[STAY] pos={self.posicao} no moves")
         return int(self.last_action)
+    
+    def reset(self):
+        """
+        Reset do estado interno do agente fixo entre episódios.
+        Necessário para avaliação consistente.
+        """
+        self.last_action = UP
+        self.path_stack = []
+        self.visited = set()
+        self.steps_since_progress = 0

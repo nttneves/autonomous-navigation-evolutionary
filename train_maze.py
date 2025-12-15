@@ -82,10 +82,10 @@ for gen in range(1, GENERATIONS + 1):
 # 4. Guardar histórico
 # =====================================================
 
-with open("results/maze/history_maze.json", "w") as f:
+with open("results/maze/train/history_maze.json", "w") as f:
     json.dump(history, f, indent=4)
 
-print("Histórico guardado em results/maze/history_maze.json")
+print("Histórico guardado em results/maze/train/history_maze.json")
 
 
 # =====================================================
@@ -107,10 +107,10 @@ plt.title("Learning Curve – Fitness")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("results/maze/plot_fitness.png", dpi=300)
+plt.savefig("results/maze/trainplot_fitness.png", dpi=300)
 plt.close()
 
-print("Curva Fitness guardada em results/maze/plot_fitness.png")
+print("Curva Fitness guardada em results/maze/train/plot_fitness.png")
 
 
 # =====================================================
@@ -126,10 +126,10 @@ plt.title("Learning Curve – Novelty")
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("results/maze/plot_novelty.png", dpi=300)
+plt.savefig("results/maze/train/plot_novelty.png", dpi=300)
 plt.close()
 
-print("Gráfico Novelty guardado em results/maze/plot_novelty.png")
+print("Gráfico Novelty guardado em results/maze/train/plot_novelty.png")
 
 
 # =====================================================

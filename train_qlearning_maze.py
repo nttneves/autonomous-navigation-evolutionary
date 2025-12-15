@@ -64,11 +64,11 @@ history, trained_agent = trainer.train(
     verbose=True
 )
 
-os.makedirs("results/maze", exist_ok=True)
-with open("results/maze/history_qlearning_maze.json", "w") as f:
+os.makedirs("results/maze/train", exist_ok=True)
+with open("results/maze/train/history_qlearning_maze.json", "w") as f:
     json.dump(history, f, indent=4)
 
-print("\nHistórico guardado em results/maze/history_qlearning_maze.json")
+print("\nHistórico guardado em results/maze/train/history_qlearning_maze.json")
 
 if len(history) > 0:
     episodes = [h["episode"] for h in history]
@@ -138,11 +138,11 @@ if len(history) > 0:
     plt.legend()
 
     plt.tight_layout()
-    os.makedirs("results/maze", exist_ok=True)
-    plt.savefig("results/maze/plot_qlearning_maze.png", dpi=300, bbox_inches='tight')
+    os.makedirs("results/maze/train", exist_ok=True)
+    plt.savefig("results/maze/train/plot_qlearning_maze.png", dpi=300, bbox_inches='tight')
     plt.close()
 
-    print("Gráficos guardados em results/maze/plot_qlearning_maze.png")
+    print("Gráficos guardados em results/maze/train/plot_qlearning_maze.png")
 
     print("\n" + "="*60)
     print("ESTATÍSTICAS FINAIS")

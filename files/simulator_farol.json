@@ -1,8 +1,8 @@
 {
     "ambiente": "farol",
-    "tamanho": [21, 21],
-    "dificuldade": 1,
-    "max_steps": 300,
+    "tamanho": [50, 50],
+    "dificuldade": 2,
+    "max_steps": 1000,
 
     "agentes": [
         "files/fixed_agent.json"
