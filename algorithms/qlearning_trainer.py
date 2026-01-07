@@ -364,7 +364,7 @@ class QLearningTrainer:
                         self.best_agent = best_copy
                     else:
                         try:
-                            from agents.qlearning_agent import QLearningAgent
+                            from agents.qlearning_agent__maze import QLearningAgent
                             self.best_agent = QLearningAgent(
                                 id="best",
                                 input_dim=self.input_dim,
@@ -431,7 +431,7 @@ class QLearningTrainer:
             self.best_agent.save(path)
         except Exception as e:
             try:
-                from agents.qlearning_agent import QLearningAgent
+                from agents.qlearning_agent__maze import QLearningAgent
                 if isinstance(self.best_agent, QLearningAgent):
                     self.best_agent.save(path)
                 else:
