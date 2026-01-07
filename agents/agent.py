@@ -10,7 +10,7 @@ class Agent(ABC):
         self.politica = politica
         self.sensores = sensores
 
-        self.sensors_range = 5 if sensores else 1
+        self.sensors_range = self.sensor_range(sensores)
 
         self.last_observation = None
         self.last_action = None
@@ -47,6 +47,9 @@ class Agent(ABC):
     def instala(self, sensor: bool):
         """Associa sensores ao agente."""
         self.sensores = sensor
+    
+    def sensor_range(self, sensores: bool):
+        return 5 if sensores else 1
 
     # ---------------------------------------------------------
     @abstractmethod

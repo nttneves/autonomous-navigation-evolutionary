@@ -9,8 +9,6 @@ import math
 class FarolEnv(Enviroment):
 
     def __init__(self, tamanho=(21,21), dificuldade=0, max_steps: int = 200, seed=None):
-        self.range_max = 5
-
         # guardar seed (se None → ambiente aleatório)
         self.seed = seed if seed is not None else random.randint(0, 999999)
 
@@ -86,7 +84,7 @@ class FarolEnv(Enviroment):
 
     def observacaoPara(self, agente: Agent):
         ax, ay = agente.posicao
-        max_r = self.range_max
+        max_r = agente.sensors_range
 
         # --------------------------------------------------
         # 1) Ray sensors (paredes) — 8 direções

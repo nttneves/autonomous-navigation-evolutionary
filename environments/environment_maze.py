@@ -81,7 +81,7 @@ class MazeEnv(Enviroment):
         ax, ay = agente.posicao
         bx, by = self.goal_pos
         w, h = self.tamanho
-        max_r = agente.sensors_range if hasattr(agente, "sensors_range") else 5
+        max_r = agente.sensors_range
 
         rf_dirs = [
             (0, -1),  # 1. N
