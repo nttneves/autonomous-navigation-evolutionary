@@ -11,9 +11,9 @@ from algorithms.genetic import set_weights_vector
 # Carregar modelo salvo (.npy com vetor de pesos)
 # ============================================
 def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
-    genome = np.load(path)  # retorna ndarray
+    genome = np.load(path)
     model = create_mlp(input_dim=input_dim, hidden_units=hidden_units, outputs=outputs)
-    set_weights_vector(model, genome)  # aplica ao modelo
+    set_weights_vector(model, genome)
     agent = EvolvedAgent(id="loaded", model=model, dim_input_rn=input_dim)
     return agent
 
@@ -21,30 +21,21 @@ def load_model_and_agent(path, input_dim=12, hidden_units=32, outputs=4):
 # MAIN
 # ============================================
 if __name__ == "__main__":
-    path = "model/best_agent_maze_2podre.npy" 
-    path2 = "model/best_agent_maze.npy"
+    path = "model/best_agent_maze.npy"
 
-    # Criar ambiente Maze
-    env = MazeEnv(dificuldade=1, max_steps=1000)
+    env = MazeEnv(dificuldade=2, max_steps=300)
 
-    if(env.dificuldade == 2):
-        agent = load_model_and_agent(path2)
-        print("Modelo carregado com sucesso!")
-    else:
-        agent = load_model_and_agent(path)
-        print("Modelo carregado com sucesso!")
+    agent = load_model_and_agent(path)
 
-    sim = Simulator(env, max_steps=1000)
+    sim = Simulator(env, max_steps=300)
     sim.agentes[agent.id] = agent
 
-    # Posição inicial manual
     env.reset()
     start = (1, env.tamanho[1] - 1)
     env.regista_agente(agent, start)
     obs = env.observacaoPara(agent)
     agent.observacao(obs)
 
-    # Correr episódio
     res = sim.run_episode(render=True)
 
     print("===== RESULTADO FINAL =====")

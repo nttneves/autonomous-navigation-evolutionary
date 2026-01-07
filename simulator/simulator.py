@@ -1,10 +1,11 @@
 # simulator.py
 import json
 from environments.environment_maze import MazeEnv
-from environments.environment import Enviroment
 from environments.environment_farol import FarolEnv
+from environments.environment import Enviroment
 from agents.evolved_agent import EvolvedAgent
 from agents.fixed_policy_agent import FixedPolicyAgent
+
 
 class Simulator:
     def __init__(self, env: Enviroment, max_steps: int = 500):
@@ -13,29 +14,32 @@ class Simulator:
         self.agentes = {}   # id → agente
         self.renderer = None
 
+        # estado interno (visualiser)
+        self._last_obs = None
+        self._done = False
+        self._steps = 0
+        self._total_reward = 0.0
+
     # ------------------------------------------------------------------
     @classmethod
     def cria(cls, ficheiro_json: str):
         with open(ficheiro_json, "r") as f:
             data = json.load(f)
 
-        # construir ambiente
         env_name = data.get("ambiente")
-        tamanho = tuple(data.get("tamanho", (21,21)))
+        tamanho = tuple(data.get("tamanho", (21, 21)))
         dificuldade = data.get("dificuldade", 0)
         max_steps = data.get("max_steps", 200)
 
         if env_name == "farol":
             env = FarolEnv(tamanho=tamanho, dificuldade=dificuldade, max_steps=max_steps)
         elif env_name == "labirinto":
-            # permitir que MazeEnv aceite tamanho opcional
             env = MazeEnv(dificuldade=dificuldade, max_steps=max_steps)
         else:
             raise ValueError("Ambiente desconhecido")
 
         sim = cls(env, max_steps)
 
-        # carregar agentes
         for ficheiro in data.get("agentes", []):
             with open(ficheiro, "r") as fa:
                 a_data = json.load(fa)
@@ -59,69 +63,67 @@ class Simulator:
     # ------------------------------------------------------------------
     def run_episode(self, render=False):
 
-        # iniciar renderer se necessário
         if render:
             from environments.renderer import EnvRenderer
             self.renderer = EnvRenderer(self.env)
 
-        # reset do ambiente
+        # reset ambiente
         self.env.reset()
 
-        # posição inicial
         start_pos = (1, self.env.tamanho[1] - 1)
 
-        # registar agentes corretamente
         for ag in self.agentes.values():
             self.env.regista_agente(ag, start_pos)
-            ag.posicao = start_pos  # CRÍTICO: manter consistência interna
+            ag.posicao = start_pos
 
         agent = self.listaAgentes()[0]
 
-        traj = [self.env.get_posicao_agente(agent)]
+        traj = [start_pos]
         total_reward = 0.0
         steps = 0
         done = False
 
-        # primeira observação
         obs = self.env.observacaoPara(agent)
         agent.observacao(obs)
 
-        # loop principal
         while not done and steps < self.max_steps:
 
-            # desenhar no pygame
             if render:
                 alive = self.renderer.draw(self.env.posicoes_agentes)
                 if not alive:
                     break
 
-            # agente decide
-            accao = agent.age()
+            action = agent.age()
 
-            # ambiente reage
-            reward, done, info = self.env.agir(accao, agent)
+            # --------------------------------------------------
+            # MOVIMENTO (sem reward)
+            # --------------------------------------------------
+            prev_pos, new_pos, info = self.env.agir(action, agent)
+
+            # --------------------------------------------------
+            # REWARD (vem do ambiente!)
+            # --------------------------------------------------
+            reward, done = self.env.compute_reward(
+                agent=agent,
+                prev_pos=prev_pos,
+                new_pos=new_pos,
+                info=info
+            )
+
             total_reward += reward
             agent.avaliacaoEstadoAtual(reward)
 
-            # nova observação
             obs = self.env.observacaoPara(agent)
             agent.observacao(obs)
 
-            # guardar trajetória
-            pos = self.env.get_posicao_agente(agent)
-            agent.posicao = pos   # CRÍTICO: atualizar posição interna
-            traj.append(pos)
+            traj.append(new_pos)
 
-            # atualizar ambiente
             self.env.atualizacao()
-
             steps += 1
 
-        # fechar janela se aberta
         if self.renderer:
             self.renderer.close()
             self.renderer = None
-        
 
         final_pos = self.env.get_posicao_agente(agent)
         goal_pos = getattr(self.env, "goal_pos", None)
@@ -162,12 +164,18 @@ class Simulator:
         if self._done:
             self.reset_env()
 
-        obs = self._last_obs
-
         if action is None:
             action = agent.age()
 
-        reward, done, info = self.env.agir(action, agent)
+        prev_pos, new_pos, info = self.env.agir(action, agent)
+
+        reward, done = self.env.compute_reward(
+            agent=agent,
+            prev_pos=prev_pos,
+            new_pos=new_pos,
+            info=info
+        )
+
         agent.avaliacaoEstadoAtual(reward)
 
         obs2 = self.env.observacaoPara(agent)

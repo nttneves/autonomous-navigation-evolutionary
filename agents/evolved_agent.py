@@ -69,5 +69,4 @@ class EvolvedAgent(Agent):
     # ============================================================
     def reset(self):
         """Reinicia estado interno da RNN entre episódios."""
-        if hasattr(self.rede_neuronal, 'reset_state'):
-            self.rede_neuronal.reset_state()
+        self.rede_neuronal.reset_state()

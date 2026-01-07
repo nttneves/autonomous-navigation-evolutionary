@@ -53,3 +53,10 @@ class Agent(ABC):
     def age(self) -> int:
         """Escolhe ação com base no estado interno."""
         pass
+
+    @abstractmethod
+    def reset(self):
+        """
+        Reset do estado interno do agente fixo entre episódios
+        """
+        pass

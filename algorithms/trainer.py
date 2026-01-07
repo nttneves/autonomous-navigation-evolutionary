@@ -51,9 +51,7 @@ class EvolutionTrainer:
         model = self._get_or_build_model(genome_id, genome)
         agent = EvolvedAgent(id="eval", model=model, sensores=True)
 
-        if hasattr(agent, "reset"):
-            agent.reset()
-
+        agent.reset()
         env.reset()
 
         h = env.tamanho[1]
@@ -68,114 +66,53 @@ class EvolutionTrainer:
         obs = env.observacaoPara(agent)
         agent.observacao(obs)
 
-        bx, by = env.goal_pos
-        px, py = start_pos
-
-        hypot = np.hypot
-        dist = hypot(px - bx, py - by)
-        prev_dist = dist
-        traj_len = 0
         trajectory = []
-        is_maze = "maze" in env.__class__.__name__.lower()
-        visited = {start_pos}
 
         while steps < env.max_steps and not done:
             action = agent.age()
-            reward, done, info = env.agir(action, agent)
 
-            pos_now = env.get_posicao_agente(agent) or (px, py)
-            x, y = pos_now
+            # 🔹 ação SEM reward
+            prev_pos, new_pos, info = env.agir(action, agent)
 
-            # ----------------------------------------------------
-            # SHAPING MAZE (ambiente discreto com paredes densas)
-            # ----------------------------------------------------
-            if is_maze:
-                reward -= 5   # mantém movimento eficiente
-
-                if info.get("collision", False):
-                    reward -= 10.0
-                else:
-                    if pos_now not in visited:
-                        new_dist = hypot(x - bx, y - by)
-                        delta = prev_dist - new_dist
-
-                        if delta > 0:
-                            reward += delta * 10.0
-                            prev_dist = new_dist
-
-                        reward += 10.0
-                        visited.add(pos_now)
-
-                if pos_now == (bx, by):
-                    reward += 1000.0 + (env.max_steps - (steps + 1)) * 2.0
-                    done = True
-
-            # ----------------------------------------------------
-            # SHAPING FAROL (ambiente aberto)
-            # ----------------------------------------------------
-            else:
-                if info.get("collision", False):
-                    reward -= 5.0
-                else:
-                    new_dist = hypot(x - bx, y - by)
-                    delta = prev_dist - new_dist
-
-                    if delta > 0:
-                        reward += delta * 10.0
-                    else:
-                        reward += delta * 50.0
-
-                    prev_dist = new_dist
-
-                reward -= 5.0  # penalização leve por cada passo
-
-                if pos_now == (bx, by):
-                    reward += 1000.0 + (env.max_steps - (steps + 1)) * 2.0
-                    done = True
+            # 🔹 reward vem do ambiente
+            reward, done = env.compute_reward(agent, prev_pos, new_pos, info)
 
             total_reward += reward
             agent.avaliacaoEstadoAtual(reward)
 
-            traj_len += 1
             agent.observacao(env.observacaoPara(agent))
 
             if steps % 5 == 0:
-                trajectory.append(pos_now)
+                trajectory.append(new_pos)
 
-            px, py = x, y
-
-            if hasattr(env, "atualizacao"):
-                env.atualizacao()
-
+            env.atualizacao()
             steps += 1
 
-        # Behaviour characteristic
+        # =====================================================
+        # Behaviour Characteristic
+        # =====================================================
         final_pos = env.get_posicao_agente(agent) or start_pos
         w, h = env.tamanho
         fx, fy = final_pos
-        maxd = hypot(w - 1, h - 1) if (w > 1 and h > 1) else 1.0
+        maxd = np.hypot(w - 1, h - 1)
 
-        d_norm = dist / maxd
-        unique_cells_norm = len(visited) / max(1, w * h)
-        traj_len_norm = traj_len / max(1, max_steps)
+        d_norm = np.hypot(fx - env.goal_pos[0], fy - env.goal_pos[1]) / maxd
+        traj_len_norm = steps / env.max_steps
 
         num_samples = 5
+        if len(trajectory) < num_samples:
+            trajectory += [final_pos] * (num_samples - len(trajectory))
+
         indices = np.linspace(0, len(trajectory) - 1, num_samples, dtype=int)
-        sampled_trajectory = [trajectory[i] for i in indices]
+        sampled = [trajectory[i] for i in indices]
 
         traj_bcs = np.array([
-            (x / max(1, w - 1), y / max(1, h - 1)) for x, y in sampled_trajectory
+            (x / (w - 1), y / (h - 1)) for x, y in sampled
         ]).flatten()
 
         behaviour = np.concatenate([
             traj_bcs,
-            np.array([
-                fx / max(1, (w - 1)),
-                fy / max(1, (h - 1)),
-                d_norm,
-                unique_cells_norm,
-                traj_len_norm
-            ], dtype=np.float32)
+            np.array([fx / (w - 1), fy / (h - 1), d_norm, traj_len_norm], dtype=np.float32)
         ])
 
         return float(total_reward), behaviour

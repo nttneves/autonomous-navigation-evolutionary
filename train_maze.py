@@ -13,9 +13,9 @@ from environments.environment_maze import MazeEnv
 # =====================================================
 
 MAX_STEPS_BY_DIFF = {
-    0: 100,     
-    1: 200,  
-    2: 500    
+    0: 50,     
+    1: 150,  
+    2: 600    
 }
 
 def make_env(dificuldade):
@@ -47,7 +47,7 @@ trainer = EvolutionTrainer(
 #    Isto impede overfitting ao último mapa visto.
 # =====================================================
 
-GENERATIONS = 2000
+GENERATIONS = 3000
 EPISODES_PER = 2   # melhor do que 1 sem aumentar muito custo
 
 history = []
@@ -57,9 +57,9 @@ for gen in range(1, GENERATIONS + 1):
     print(f"\n=== CURRICULUM MAZE – Geração {gen} ===")
 
     # curriculum afeta apenas alpha (exploração vs exploração)
-    if gen <= 1000:
+    if gen <= 1500:
         alpha_value = 0.8   # exploração
-    elif gen <= 1500:
+    elif gen <= 2250:
         alpha_value = 0.5   # transição
     else:
         alpha_value = 0.2   # exploração mínima, foco total no fitness
@@ -139,9 +139,9 @@ print("Gráfico Novelty guardado em results/maze/train/plot_novelty.png")
 # Avaliamos o campeão usando *uma factory* (podes escolher qualquer dificuldade).
 ok, score = trainer.save_champion(
     "model/best_agent_maze",
-    env_factory=lambda: MazeEnv(dificuldade=2, max_steps=MAX_STEPS_BY_DIFF[2]),  # seed fixa como pediste
-    max_steps=MAX_STEPS_BY_DIFF[2],
-    n_eval=20,
+    env_factory=lambda: MazeEnv(dificuldade=2, max_steps=500),  # seed fixa como pediste
+    max_steps=500,
+    n_eval=10,
     threshold=-10000.0
 )
 

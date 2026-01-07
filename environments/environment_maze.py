@@ -9,11 +9,11 @@ class MazeEnv(Enviroment):
 
     def __init__(self, dificuldade=0, max_steps: int = 200):
         if dificuldade == 0:
-            tamanho = (12,12); seed = 42
+            tamanho = (11,11); seed = 42
         elif dificuldade == 1:
-            tamanho = (20,20); seed = 150
+            tamanho = (19,19); seed = 150
         else:
-            tamanho = (30,30); seed = 456
+            tamanho = (29,29); seed = 456
 
         self.seed = seed
         super().__init__(tamanho, dificuldade, max_steps)
@@ -49,6 +49,32 @@ class MazeEnv(Enviroment):
         maze[h-1,1] = maze[h-2,1] = maze[h-1,2] = VAZIO
 
         return maze, goal_pos
+    
+    
+    def compute_reward(self, agent, prev_pos, new_pos, info):
+        reward = -5.0
+        done = False
+
+        bx, by = self.goal_pos
+        px, py = prev_pos
+        nx, ny = new_pos
+
+        prev_dist = math.hypot(px - bx, py - by)
+        new_dist  = math.hypot(nx - bx, ny - by)
+
+        if info.get("collision", False):
+            reward -= 10.0
+        else:
+            delta = prev_dist - new_dist
+            if delta > 0:
+                reward += delta * 10.0
+            reward += 10.0  # explorar célula válida
+
+        if new_pos == self.goal_pos:
+            reward += 1000.0 + (self.max_steps - self._steps) * 2.0
+            done = True
+
+        return reward, done
     
 
     def observacaoPara(self, agente: Agent):

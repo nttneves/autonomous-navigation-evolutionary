@@ -41,6 +41,15 @@ class Enviroment(ABC):
         """
         pass
 
+    @abstractmethod
+    def compute_reward(self, agent, prev_pos, new_pos, info):
+        """
+        Deve devolver:
+            reward: float
+            done: bool
+        """
+        pass
+
     # ================================================================
     # Métodos comuns aos ambientes
     # ================================================================
@@ -107,29 +116,28 @@ class Enviroment(ABC):
     # ================================================================
 
     def agir(self, accao: int, agente: Agent):
-        x, y = self.posicoes_agentes[agente.id]
+        # posição antes da ação
+        prev_pos = self.posicoes_agentes[agente.id]
+        x, y = prev_pos
+
         dx, dy = ACTION_TO_DELTA[accao]
         nx, ny = x + dx, y + dy
 
-        #reward = 0.0
-        done = False
-        inff={}
+        info = {}
+        new_pos = prev_pos
 
         if not self._in_bounds(nx, ny) or self.mapa_estado[ny, nx] == PAREDE:
-            #reward -= 0.01
-            inff["collision"] = True
-            nx, ny = x, y
+            info["collision"] = True
+            # agente não se move
         else:
-            self.posicoes_agentes[agente.id] = (nx, ny)
-            agente.posicao = (nx, ny)
+            new_pos = (nx, ny)
+            self.posicoes_agentes[agente.id] = new_pos
+            agente.posicao = new_pos
 
-        if (nx, ny) == self.goal_pos:
-            #reward += 1.0
-            inff["reached_beacon"] = True
-            done = True
+        if new_pos == self.goal_pos:
+            info["reached_beacon"] = True
 
-        #return reward, done, {}
-        return 0.0, done, inff
+        return prev_pos, new_pos, info
 
     # ================================================================
     # Fim de episódio

@@ -3,6 +3,7 @@ from environments.environment import Enviroment, VAZIO, PAREDE, GOAL
 import random
 import numpy as np
 import agents.agent as Agent
+import math
 
 
 class FarolEnv(Enviroment):
@@ -33,8 +34,8 @@ class FarolEnv(Enviroment):
         mapa = np.full((h, w), VAZIO, dtype=int)
 
         # --------------------------------------------------------
-        # 1. Farol (goal) não pode estar nas bordas!
-        #    Está sempre na metade superior.
+        # 1. Farol não pode estar nas bordas
+        #    Está sempre na metade superior
         # --------------------------------------------------------
         bx = rng.randint(1, w - 2)        # evita bordas esquerda/direita
         by = rng.randint(1, h // 3)       # evita bordas superior, fica na parte de cima
@@ -59,6 +60,30 @@ class FarolEnv(Enviroment):
 
         return mapa, goal_pos
     
+    def compute_reward(self, agent, prev_pos, new_pos, info):
+        reward = -5.0
+        done = False
+
+        bx, by = self.goal_pos
+        px, py = prev_pos
+        nx, ny = new_pos
+
+        prev_dist = math.hypot(px - bx, py - by)
+        new_dist  = math.hypot(nx - bx, ny - by)
+        delta = prev_dist - new_dist
+
+        if info.get("collision", False):
+            reward -= 5.0
+        else:
+            reward += delta * (10.0 if delta > 0 else 50.0)
+
+        if new_pos == self.goal_pos:
+            reward += 1000.0 + (self.max_steps - self._steps) * 2.0
+            done = True
+
+        return reward, done
+    
+
     def observacaoPara(self, agente: Agent):
         ax, ay = agente.posicao
         max_r = self.range_max
