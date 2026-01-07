@@ -182,4 +182,3 @@ if __name__ == "__main__":
     print(f"Simulator - Steps: {res_sim['steps']}")
     print(f"Simulator - Final: {res_sim['final_pos']}")
     print("="*60)
-

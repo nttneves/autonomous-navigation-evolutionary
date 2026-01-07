@@ -1,187 +1,64 @@
-# main_qlearning_farol.py
-import sys
-import numpy as np
-from simulator.simulator import Simulator
+import time
 from environments.environment_farol import FarolEnv
 from agents.qlearning_agent import QLearningAgent
+from agents.QLearningRuntimeAgent import QLearningRuntimeAgent
+from algorithms.qlearning_trainer import FarolObservationDiscretizer
+from simulator.simulator import Simulator
 
-
-# ============================================
-# Função para testar usando o mesmo protocolo do treino
-# ============================================
-def test_agent_same_protocol(agent, env, max_steps=350, render=False):
-    """
-    Testa o agente usando o mesmo protocolo do train_episode.
-    Isso garante que o comportamento seja consistente com o treino.
-    """
-    from environments.renderer import EnvRenderer
-    
-    env.reset()
-    agent.reset()
-    
-    # Garantir epsilon = 0 para teste puro (sem exploração)
-    agent.epsilon = 0.0
-    
-    # Posição inicial: centro do mapa (ou canto inferior)
-    w, h = env.tamanho
-    start_pos = (w // 2, h - 2)  # Centro horizontal, próximo do fundo
-    
-    env.regista_agente(agent, start_pos)
-    agent.posicao = start_pos
-    
-    obs = env.observacaoPara(agent)
-    agent.observacao(obs)
-    
-    bx, by = env.goal_pos
-    total_reward = 0.0
-    steps = 0
-    done = False
-    prev_dist = np.hypot(start_pos[0] - bx, start_pos[1] - by)
-    pos_now = start_pos
-    
-    # Renderer opcional
-    renderer = None
-    if render:
-        renderer = EnvRenderer(env)
-    
-    trajectory = [start_pos]
-    
-    while steps < max_steps and not done:
-        # Renderizar
-        if renderer:
-            alive = renderer.draw(env.posicoes_agentes)
-            if not alive:
-                break
-        
-        state = obs
-        action = agent.age()
-        reward, done, info = env.agir(action, agent)
-        
-        pos_now = env.get_posicao_agente(agent) or pos_now
-        x, y = pos_now
-        
-        # Reward shaping (igual ao treino, mas apenas para visualização)
-        # NOTA: Não atualizamos Q-table durante teste
-        reward_shaped = reward
-        if True:  # Sempre aplicar shaping para consistência visual
-            # Farol: recompensa baseada em distância
-            new_dist = np.hypot(x - bx, y - by)
-            reward_shaped += (prev_dist - new_dist) * 5.0
-            prev_dist = new_dist
-        
-        if info.get("collision", False):
-            reward_shaped -= 10.0
-        
-        if pos_now == (bx, by) or info.get("reached_beacon", False):
-            reward_shaped += 1000.0
-            done = True
-        
-        total_reward += reward_shaped
-        trajectory.append(pos_now)
-        
-        next_obs = env.observacaoPara(agent) if not done else None
-        if next_obs is not None:
-            agent.observacao(next_obs)
-        
-        obs = next_obs
-        
-        if hasattr(env, "atualizacao"):
-            env.atualizacao()
-        
-        steps += 1
-    
-    if renderer:
-        renderer.close()
-    
-    final_pos = env.get_posicao_agente(agent) or pos_now
-    reached_goal = (final_pos == (bx, by))
-    
-    return {
-        "total_reward": total_reward,
-        "steps": steps,
-        "reached_goal": reached_goal,
-        "final_pos": final_pos,
-        "goal_pos": (bx, by),
-        "trajectory": trajectory
-    }
-
-
-# ============================================
-# MAIN
-# ============================================
+# =====================================================
+# MAIN - TESTE COM RENDER
+# =====================================================
 if __name__ == "__main__":
-    # Carregar agente Q-Learning treinado
+    # Carregar agente treinado
     path = "model/best_agent_qlearning_farol.pkl"
-    
-    try:
-        agent = QLearningAgent.load(path, id="qlearning_loaded")
-        print("Agente Q-Learning carregado com sucesso!")
-        print(f"Tamanho da Q-table: {len(agent.q_table)} estados")
-        print(f"Epsilon original: {agent.epsilon:.4f}")
-    except Exception as e:
-        print(f"Erro ao carregar agente: {e}")
-        print("Certifique-se de que o agente foi treinado primeiro (train_qlearning_farol.py)")
-        sys.exit(1)
-    
-    # Criar ambiente Farol (pode escolher a dificuldade)
-    dificuldade = 1  # 1=fácil, 2=médio, 3=difícil
-    tamanho = (50, 50)
-    env = FarolEnv(tamanho=tamanho, dificuldade=dificuldade, max_steps=1000, seed=None)
-    
-    print(f"\nAmbiente criado:")
-    print(f"  - Dificuldade: {dificuldade}")
-    print(f"  - Tamanho: {env.tamanho}")
-    print(f"  - Goal: {env.goal_pos}")
-    print(f"  - Max steps: 1000")
-    
-    # Testar múltiplas vezes para ver taxa de sucesso
-    print("\n" + "="*60)
-    print("TESTE - Mesmo protocolo do treino")
-    print("="*60)
-    
-    num_tests = 5
-    successes = 0
-    total_rewards = []
-    
-    for i in range(num_tests):
-        # Criar novo ambiente com seed aleatória para cada teste
-        env = FarolEnv(tamanho=tamanho, dificuldade=dificuldade, max_steps=1000, seed=None)
-        res = test_agent_same_protocol(agent, env, max_steps=1000, render=(i == 0))
-        total_rewards.append(res['total_reward'])
-        if res['reached_goal']:
-            successes += 1
-            print(f"Teste {i+1}: ✓ Sucesso! Steps: {res['steps']}, Reward: {res['total_reward']:.2f}")
-        else:
-            print(f"Teste {i+1}: ✗ Falhou. Steps: {res['steps']}, Final: {res['final_pos']}, Goal: {res['goal_pos']}, Reward: {res['total_reward']:.2f}")
-    
-    print("\n" + "="*60)
-    print("RESUMO")
-    print("="*60)
-    print(f"Taxa de sucesso: {successes}/{num_tests} ({100*successes/num_tests:.1f}%)")
-    print(f"Reward médio: {np.mean(total_rewards):.2f} ± {np.std(total_rewards):.2f}")
-    print(f"Epsilon usado: 0.0 (exploração desligada)")
-    print("="*60)
-    
-    # Teste adicional usando Simulator (para comparação)
-    print("\n" + "="*60)
-    print("TESTE - Usando Simulator (protocolo diferente)")
-    print("="*60)
-    env = FarolEnv(tamanho=tamanho, dificuldade=dificuldade, max_steps=1000, seed=None)
-    sim = Simulator(env, max_steps=1000)
-    sim.agentes[agent.id] = agent
-    
-    env.reset()
-    agent.reset()
-    agent.epsilon = 0.0  # Garantir sem exploração
-    w, h = env.tamanho
-    start = (w // 2, h - 2)
-    env.regista_agente(agent, start)
-    obs = env.observacaoPara(agent)
-    agent.observacao(obs)
-    
-    res_sim = sim.run_episode(render=False)
-    print(f"Simulator - Reached Goal: {res_sim['reached_goal']}")
-    print(f"Simulator - Steps: {res_sim['steps']}")
-    print(f"Simulator - Final: {res_sim['final_pos']}")
-    print("="*60)
+    q_agent = QLearningAgent.load(path)
 
+    # Criar discretizer do treino
+    discretizer = FarolObservationDiscretizer()
+
+    # Criar runtime agent
+    agent = QLearningRuntimeAgent(q_agent, discretizer, id="q_agent_1")
+
+    # Criar ambiente
+    env = FarolEnv(tamanho=(50,50), dificuldade=3, max_steps=200)
+
+    # Criar simulator e adicionar agente
+    sim = Simulator(env, max_steps=200)
+    sim.agentes[agent.id] = agent
+
+    # Reset inicial
+    obs = sim.reset_env()
+
+    # Criar renderer (janela Pygame)
+    from environments.renderer import EnvRenderer
+    renderer = EnvRenderer(env, window_size=500)
+
+    done = False
+    steps = 0
+
+    while not done and steps < sim.max_steps:
+        # ação do agente
+        action = agent.age()
+
+        # passo no simulador
+        obs, reward, done, info = sim.step_once_for_visualiser(action)
+
+        # desenhar agente no mapa
+        alive = renderer.draw(env.posicoes_agentes)
+        if not alive:  # se fechar a janela
+            break
+
+        steps += 1
+        time.sleep(0.05)  # controla velocidade do boneco
+
+    renderer.close()
+
+    # resultado final
+    final_pos = env.get_posicao_agente(agent)
+    reached = final_pos == env.goal_pos
+    print("\nRESULTADO FINAL")
+    print(f"Reward total: {sim._total_reward:.2f}")
+    print(f"Steps: {steps}")
+    print(f"Posição final: {final_pos}")
+    print(f"Goal: {env.goal_pos}")
+    print(f"Chegou ao goal? {'✓' if reached else '✗'}")

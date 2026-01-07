@@ -39,8 +39,8 @@ trainer = QLearningTrainer(
     verbose=True
 )
 
-EPISODES = 10000
-MAX_STEPS = 1000
+EPISODES = 2000
+MAX_STEPS = 300
 
 print("=== TREINO Q-LEARNING - LABIRINTO ===\n")
 

@@ -1,10 +1,49 @@
 # algorithms/qlearning_trainer.py
 import numpy as np
+# ============================================================
+# Discretização da Observação
+# ============================================================
+class FarolObservationDiscretizer:
+    def __init__(self):
+        # reduzir número de bins para manter o espaço de estados manejável
+        self.ray_bins = [3]*8
+        self.radar_bins = [2]*4
+        self.bins = self.ray_bins + self.radar_bins
+        self.low = [0.0]*8 + [0.0]*4
+        self.high = [5.0]*8 + [1.0]*4
+
+    def discretize(self, obs):
+        indices = []
+        for i in range(len(obs)):
+            val = np.clip(obs[i], self.low[i], self.high[i])
+            n = self.bins[i]
+            bin_size = (self.high[i] - self.low[i]) / n
+            idx = int((val - self.low[i]) / bin_size)
+            idx = min(idx, n-1)
+            indices.append(idx)
+        return tuple(indices)
+
+    def tuple_to_index(self, tup):
+        idx = 0
+        for i, val in enumerate(tup):
+            mult = np.prod(self.bins[i+1:]) if i+1 < len(self.bins) else 1
+            idx += val * mult
+        return int(idx)
+
+    @property
+    def n_states(self):
+        return int(np.prod(self.bins))
+    
+
+
+# algorithms/qlearning_trainer.py
+import numpy as np
 from typing import Callable, Optional, Tuple
 import random
 import tempfile
 import os
 import time
+
 
 class QLearningTrainer:
 
@@ -119,7 +158,8 @@ class QLearningTrainer:
         while steps < max_steps and not done:
             state = obs
             action = agent.age()
-            reward, done, info = env.agir(action, agent)
+            prev_pos, new_pos, info = env.agir(action, agent)
+            reward=0.0
 
             pos_now = env.get_posicao_agente(agent) or pos_now
             x, y = pos_now
@@ -209,7 +249,7 @@ class QLearningTrainer:
             verbose = self.verbose
 
         try:
-            from agents.qlearning_agent import QLearningAgent
+            from agents.qlearning_agent__maze import QLearningAgent
         except Exception:
             raise RuntimeError("Não foi possível importar QLearningAgent. Verifica a estrutura de ficheiros.")
 
