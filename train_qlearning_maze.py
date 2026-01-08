@@ -1,162 +1,157 @@
-# train_qlearning_maze.py
 import json
 import numpy as np
 import matplotlib.pyplot as plt
-from algorithms.qlearning_trainer import QLearningTrainer
+from algorithms.qlearning_trainer import MazeObservationDiscretizer
 from environments.environment_maze import MazeEnv
-import random
+from environments.environment import ACTION_TO_DELTA
+from agents.qlearning_agent import QLearningAgent
+from agents.QLearningRuntimeAgent import QLearningRuntimeAgent
 import os
+from tqdm import trange
 
-def make_env(dificuldade):
-    return lambda: MazeEnv(dificuldade=dificuldade, max_steps=450)
+# ============================================================
+# Treino Q-Learning (Maze – multi-mapas) com incentivo a explorar
+# ============================================================
+def train_qlearning(agent, discretizer, episodes=2000, max_steps=200, verbose=True):
+    rewards_history = []
+    best_reward = -float('inf')
 
-curriculum_env_factories = [
-    make_env(0),
-    make_env(1),
-    make_env(2),
-]
+    os.makedirs("model", exist_ok=True)
+    best_agent_path = "model/best_agent_qlearning_maze.pkl"
 
-def curriculum_env_factory(episode):
-    if episode <= 1000:
-        pool = curriculum_env_factories[0:2]
-    else:
-        pool = curriculum_env_factories
-    return random.choice(pool)()
+    dificuldades = [0, 1, 2]  # os 3 mazes
+    pbar = trange(1, episodes + 1, desc="Treino Q-Learning (Maze)")
 
-trainer = QLearningTrainer(
-    input_dim=12,
-    learning_rate=0.1,
-    gamma=0.99,
-    epsilon_start=1.0,
-    epsilon_min=0.05,
-    epsilon_decay=0.9995,
-    n_bins=8,
-    seed=42,
-    decay_per_step=False,
-    min_explore_steps=1000,
-    reward_clip=None,
-    normalize_rewards=False,
-    verbose=True
-)
+    for ep in pbar:
+        total_reward_ep = 0  # reward total do episódio
 
-EPISODES = 2000
-MAX_STEPS = 300
+        for dificuldade in dificuldades:  # cada episódio passa pelos 3 níveis
+            env = MazeEnv(dificuldade=dificuldade, max_steps=max_steps)
 
-print("=== TREINO Q-LEARNING - LABIRINTO ===\n")
+            rl_agent = QLearningRuntimeAgent(
+                id=f"q_agent_{ep}",
+                discretizer=discretizer,
+                agent=agent
+            )
+            env.regista_agente(rl_agent, pos_inicial=(1, 1))
+            rl_agent.visited = set()
 
-class EnvFactoryWrapper:
-    def __init__(self, curriculum_func):
-        self.curriculum_func = curriculum_func
-        self.episode_count = 0
-    
-    def __call__(self):
-        self.episode_count += 1
-        return self.curriculum_func(self.episode_count)
+            obs = env.observacaoPara(rl_agent)
+            state = discretizer.tuple_to_index(discretizer.discretize(obs))
 
-env_factory_wrapper = EnvFactoryWrapper(curriculum_env_factory)
+            for step in range(max_steps):
+                action = agent.choose_action(state)
+                prev_pos, new_pos, info = env.agir(action, rl_agent)
+                bx, by = env.goal_pos
+                px, py = prev_pos
+                nx, ny = new_pos
 
-history, trained_agent = trainer.train(
-    env_factory=env_factory_wrapper,
-    max_steps=MAX_STEPS,
-    episodes=EPISODES,
-    eval_frequency=100,
-    eval_episodes=10,
-    verbose=True
-)
+                # Reward para incentivar exploração
+                reward = -1
+                done = False
 
-os.makedirs("results/maze/train", exist_ok=True)
-with open("results/maze/train/history_qlearning_maze.json", "w") as f:
-    json.dump(history, f, indent=4)
+                if info.get("collision", False):
+                    reward -= 10.0
+                else:
+                    delta = max(0, np.hypot(px - bx, py - by) - np.hypot(nx - bx, ny - by))
+                    reward += delta * 7.0
 
-print("\nHistórico guardado em results/maze/train/history_qlearning_maze.json")
+                    if (nx, ny) not in rl_agent.visited:
+                        reward += 20.0
+                        rl_agent.visited.add((nx, ny))
+                    else:
+                        reward -= 4.0
 
-if len(history) > 0:
-    episodes = [h["episode"] for h in history]
-    mean_rewards = [h["mean_reward"] for h in history]
-    eval_rewards = [h["mean_eval_reward"] for h in history]
-    best_scores = [h["best_score"] for h in history]
-    epsilons = [h["epsilon"] for h in history]
-    success_rates = [h["success_rate"] for h in history]
-    success_rates_train = [h["success_rate_train"] for h in history]
-    mean_steps = [h["mean_steps"] for h in history]
-    q_table_sizes = [h["q_table_size"] for h in history]
+                if (nx, ny) == (bx, by):
+                    reward += 1000.0
+                    done = True
 
-    plt.figure(figsize=(14, 10))
+                env.atualizacao()
+                obs2 = env.observacaoPara(rl_agent)
+                state2 = discretizer.tuple_to_index(discretizer.discretize(obs2))
 
-    plt.subplot(2, 3, 1)
-    plt.plot(episodes, mean_rewards, label="Mean Reward (Training)", alpha=0.7, linewidth=2)
-    plt.plot(episodes, eval_rewards, label="Mean Reward (Evaluation)", linewidth=2)
-    plt.plot(episodes, best_scores, label="Best Score", linewidth=2, linestyle="--")
-    plt.xlabel("Episode")
-    plt.ylabel("Reward")
-    plt.title("Q-Learning - Learning Curve (Rewards)")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+                agent.update(state, action, reward, state2, done)
+                state = state2
+                total_reward_ep += reward
 
-    plt.subplot(2, 3, 2)
-    plt.plot(episodes, epsilons, label="Epsilon (Exploration)", linewidth=2)
-    plt.xlabel("Episode")
-    plt.ylabel("Epsilon")
-    plt.title("Exploration Decay")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+                if done or env.terminou():
+                    break
 
-    plt.subplot(2, 3, 3)
-    plt.plot(episodes, success_rates, label="Success Rate (Evaluation)", linewidth=2)
-    plt.plot(episodes, success_rates_train, label="Success Rate (Training)", alpha=0.7, linewidth=2)
-    plt.xlabel("Episode")
-    plt.ylabel("Success Rate (%)")
-    plt.title("Goal Reaching Success Rate")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.ylim([0, 105])
+        # Decaimento lento de epsilon
+        agent.decay_epsilon()
+        rewards_history.append(total_reward_ep)
 
-    plt.subplot(2, 3, 4)
-    plt.plot(episodes, mean_steps, label="Mean Steps", linewidth=2)
-    plt.axhline(y=MAX_STEPS, color='r', linestyle='--', alpha=0.5, label=f'Max Steps ({MAX_STEPS})')
-    plt.xlabel("Episode")
-    plt.ylabel("Steps")
-    plt.title("Mean Steps per Episode")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+        # Guardar melhor agente
+        if total_reward_ep > best_reward:
+            best_reward = total_reward_ep
+            agent.save(best_agent_path)
 
-    plt.subplot(2, 3, 5)
-    plt.plot(episodes, q_table_sizes, label="Q-Table Size", linewidth=2)
-    plt.xlabel("Episode")
-    plt.ylabel("Number of States")
-    plt.title("Q-Table Growth (States Discovered)")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+        if verbose:
+            mean_recent = np.mean(rewards_history[-100:])
+            pbar.set_postfix({
+                "R": f"{total_reward_ep:.1f}",
+                "Mean100": f"{mean_recent:.1f}",
+                "ε": f"{agent.epsilon:.3f}"
+            })
 
-    plt.subplot(2, 3, 6)
-    std_rewards = [h["std_reward"] for h in history]
-    plt.plot(episodes, std_rewards, label="Reward Std Dev", linewidth=2)
-    plt.xlabel("Episode")
-    plt.ylabel("Standard Deviation")
-    plt.title("Reward Variance (Learning Stability)")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
+    return rewards_history, best_reward
 
-    plt.tight_layout()
+
+# ============================================================
+# Main
+# ============================================================
+if __name__ == "__main__":
+    EPISODES = 10000
+    MAX_STEPS = 600
+
+    print("=== TREINO Q-LEARNING - MAZE ===\n")
+
+    discretizer = MazeObservationDiscretizer()
+    agent = QLearningAgent(
+        n_states=discretizer.n_states,
+        n_actions=len(ACTION_TO_DELTA),
+        alpha=0.1,           # taxa de aprendizagem média
+        gamma=0.99,          # valor futuro muito importante
+        epsilon=0.7,         # começa 100% explorando
+        epsilon_min=0.1,     # nunca menos de 30% exploração
+        epsilon_decay=0.9998 # decaimento muito lento
+    )
+    rewards, best_reward = train_qlearning(
+        agent,
+        discretizer,
+        episodes=EPISODES,
+        max_steps=MAX_STEPS,
+        verbose=True
+    )
+
+    # Guardar histórico
     os.makedirs("results/maze/train", exist_ok=True)
-    plt.savefig("results/maze/train/plot_qlearning_maze.png", dpi=300, bbox_inches='tight')
+    history_path = "results/maze/train/history_qlearning_maze.json"
+    with open(history_path, "w") as f:
+        json.dump({"rewards": rewards, "episodes": EPISODES, "best_reward": best_reward}, f, indent=4)
+    print(f"\nHistórico guardado em {history_path}")
+
+    # Gráfico
+    plt.figure(figsize=(10, 4))
+    plt.plot(rewards, label="Reward por episódio")
+    plt.xlabel("Episódio")
+    plt.ylabel("Reward total")
+    plt.title("Q-Learning – Treino Multi-Labirinto (Maze)")
+    plt.grid(True)
+    plt.legend()
+    plot_path = "results/maze/train/plot_qlearning_maze.png"
+    plt.savefig(plot_path, dpi=200, bbox_inches="tight")
     plt.close()
+    print(f"Gráfico guardado em {plot_path}")
 
-    print("Gráficos guardados em results/maze/train/plot_qlearning_maze.png")
-
-    print("\n" + "="*60)
-    print("ESTATÍSTICAS FINAIS")
-    print("="*60)
+    # Estatísticas finais
+    print("\n" + "=" * 50)
+    print("TREINO CONCLUÍDO - ESTATÍSTICAS FINAIS")
+    print("=" * 50)
     print(f"Episódios treinados: {EPISODES}")
-    print(f"Melhor score: {trainer.best_score:.4f}")
-    print(f"Último success rate (eval): {success_rates[-1]:.1f}%")
-    print(f"Tamanho final da Q-table: {q_table_sizes[-1]} estados")
-    print(f"Epsilon final: {epsilons[-1]:.4f}")
-    print(f"Último reward médio (treino): {mean_rewards[-1]:.2f}")
-    print(f"Último reward médio (eval): {eval_rewards[-1]:.2f}")
-    print("="*60)
-
-os.makedirs("model", exist_ok=True)
-trainer.save_best_agent("model/best_agent_qlearning_maze")
-print(f"\nMelhor agente guardado em model/best_agent_qlearning_maze.pkl")
-print(f"Melhor score: {trainer.best_score:.4f}")
+    print(f"Melhor reward: {best_reward:.2f}")
+    print(f"Epsilon final: {agent.epsilon:.4f}")
+    print(f"Tamanho da Q-table: {agent.Q.shape[0]} estados")
+    print(f"Último reward: {rewards[-1]:.2f}")
+    print("=" * 50)
+    print(f"\nMelhor agente guardado em model/best_agent_qlearning_maze.pkl")

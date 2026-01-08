@@ -20,7 +20,7 @@ if __name__ == "__main__":
     agent = QLearningRuntimeAgent(q_agent, discretizer, id="q_agent_1")
 
     # Criar ambiente
-    env = FarolEnv(tamanho=(50,50), dificuldade=3, max_steps=200)
+    env = FarolEnv(tamanho=(50,50), dificuldade=1, max_steps=300)
 
     # Criar simulator e adicionar agente
     sim = Simulator(env, max_steps=200)

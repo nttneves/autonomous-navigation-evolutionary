@@ -13,80 +13,105 @@ from tqdm import trange  # Barra de progresso
 # ============================================================
 # Treino Q-Learning
 # ============================================================
-def train_qlearning(env, agent, discretizer, episodes=2000, max_steps=200, verbose=True):
+def train_qlearning(agent, discretizer, episodes=2000, max_steps=200, verbose=True):
     rewards_history = []
     best_reward = -float('inf')
     best_agent_path = os.path.join('model', 'best_agent_qlearning_farol.pkl')
     os.makedirs('model', exist_ok=True)
 
+    dificuldades = [1, 2, 3]  # 3 níveis de dificuldade
     pbar = trange(1, episodes + 1, desc="Treino Q-Learning")
 
     for ep in pbar:
-        # Reset do ambiente
-        env.reset()
-        rl_agent = QLearningRuntimeAgent(id=f"q_agent_{ep}", discretizer=discretizer, agent=agent)
-        env.regista_agente(rl_agent, pos_inicial=(10, 18))
+        total_reward_ep = 0  # reward total do episódio
 
-        obs = env.observacaoPara(rl_agent)
-        state = discretizer.tuple_to_index(discretizer.discretize(obs))
+        for dificuldade in dificuldades:
+            seed = np.random.randint(0, 10000)
+            env = FarolEnv(tamanho=(50, 50), dificuldade=dificuldade, max_steps=max_steps, seed=seed)
 
-        total_reward = 0
+            rl_agent = QLearningRuntimeAgent(id=f"q_agent_{ep}", discretizer=discretizer, agent=agent)
+            env.regista_agente(rl_agent, pos_inicial=(10, 18))
+            rl_agent.visited = set()  # para poder adicionar bónus exploração
 
-        for step in range(max_steps):
-            action = agent.choose_action(state)
+            obs = env.observacaoPara(rl_agent)
+            state = discretizer.tuple_to_index(discretizer.discretize(obs))
 
-            prev_pos, new_pos, info = env.agir(action, rl_agent)
-            reward, done = env.compute_reward(rl_agent, prev_pos, new_pos, info)
-            env.atualizacao()
+            for step in range(max_steps):
+                action = agent.choose_action(state)
+                prev_pos, new_pos, info = env.agir(action, rl_agent)
 
-            obs2 = env.observacaoPara(rl_agent)
-            state2 = discretizer.tuple_to_index(discretizer.discretize(obs2))
+                # --- Reward do ambiente ---
+                reward = -5.0
+                done = False
 
-            agent.update(state, action, reward, state2, done)
+                bx, by = env.goal_pos
+                px, py = prev_pos
+                nx, ny = new_pos
 
-            state = state2
-            total_reward += reward
+                
+                delta = np.hypot(px - bx, py - by) - np.hypot(nx - bx, ny - by)
 
-            if done or env.terminou():
-                break
+                if info.get("collision", False):
+                    reward -= 15.0
+                else:
+                    reward += delta * (10.0 if delta > 0 else 50.0)
 
+                if new_pos == env.goal_pos:
+                    reward += 1000.0 + (max_steps - step) * 2.0
+                    done = True
+
+
+                env.atualizacao()
+                obs2 = env.observacaoPara(rl_agent)
+                state2 = discretizer.tuple_to_index(discretizer.discretize(obs2))
+
+                agent.update(state, action, reward, state2, done)
+                state = state2
+                total_reward_ep += reward
+
+                if done or env.terminou():
+                    break
+
+        # Decaimento lento de epsilon para manter exploração
         agent.decay_epsilon()
-        rewards_history.append(total_reward)
+        rewards_history.append(total_reward_ep)
 
         # Guardar melhor agente
-        if total_reward > best_reward:
-            best_reward = total_reward
+        if total_reward_ep > best_reward:
+            best_reward = total_reward_ep
             agent.save(best_agent_path)
 
-        # Atualizar TUI da barra de progresso
         if verbose:
             mean_recent = np.mean(rewards_history[-100:]) if len(rewards_history) >= 1 else 0
-            pbar.set_postfix(
-                {"Reward": f"{total_reward:.1f}", "Mean100": f"{mean_recent:.1f}", "ε": f"{agent.epsilon:.3f}"}
-            )
+            pbar.set_postfix({"Reward": f"{total_reward_ep:.1f}", "Mean100": f"{mean_recent:.1f}", "ε": f"{agent.epsilon:.3f}"})
 
     return rewards_history, best_reward
+
 
 # ============================================================
 # Main
 # ============================================================
 if __name__ == "__main__":
     EPISODES = 2000
-    MAX_STEPS = 400
+    MAX_STEPS = 500
 
     print("=== TREINO Q-LEARNING - FAROL ===\n")
 
-    env = FarolEnv(tamanho=(50, 50), dificuldade=2, max_steps=MAX_STEPS, seed=42)
+
     discretizer = FarolObservationDiscretizer()
     agent = QLearningAgent(
         n_states=discretizer.n_states,
         n_actions=len(ACTION_TO_DELTA),
         alpha=0.1,
-        gamma=0.99
+        gamma=0.99,
+        epsilon=0.5,       # começa 100% explorando
+        epsilon_min=0.3,   # nunca menos de 30% exploração
+        epsilon_decay=0.999 # decaimento muito lento
     )
 
-    rewards, best_reward = train_qlearning(env, agent, discretizer,
-                                           episodes=EPISODES, max_steps=MAX_STEPS, verbose=True)
+    rewards, best_reward = train_qlearning(agent, discretizer,
+                                       episodes=EPISODES, max_steps=MAX_STEPS, verbose=True)
+
 
     # ============================================================
     # Salvar histórico
