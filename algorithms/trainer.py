@@ -71,10 +71,8 @@ class EvolutionTrainer:
         while steps < env.max_steps and not done:
             action = agent.age()
 
-            # 🔹 ação SEM reward
             prev_pos, new_pos, info = env.agir(action, agent)
 
-            # 🔹 reward vem do ambiente
             reward, done = env.compute_reward(agent, prev_pos, new_pos, info)
 
             total_reward += reward
