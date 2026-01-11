@@ -29,7 +29,7 @@ semi_random_maps = [make_env(s, dificuldade=2) for s in range(1000, 1020)]
 # ---------- FASE 3: mapas totalmente aleatórios ----------
 def fully_random_env():
     seed = random.randint(10000, 99999)
-    dificuldade = random.choice([2, 3])
+    dificuldade = random.choices([2, 3, 4, 5], weights=[0.1, 0.3, 0.4, 0.2])[0]
     return FarolEnv(
         tamanho=(50, 50),
         dificuldade=dificuldade,
@@ -46,11 +46,11 @@ def curriculum_env_factory(generation):
     """
     Retorna um ambiente dependendo da fase do treino.
     """
-    if generation <= 20:
+    if generation <= 50:
         # Fase 1 — só mapas fixos → rápido e estável
         return random.choice(fixed_maps)()
 
-    elif generation <= 60:
+    elif generation <= 200:
         # Fase 2 — mistura mapas fixos e semi-aleatórios
         pool = fixed_maps + semi_random_maps
         return random.choice(pool)()
@@ -83,20 +83,27 @@ trainer = EvolutionTrainer(
 # 4. CICLO DE TREINO
 # ============================================================
 
-GENERATIONS = 700
-MAX_STEPS = 350
+GENERATIONS = 3000
+MAX_STEPS = 300
 history = []
 
 for gen in range(1, GENERATIONS + 1):
     wrapper_env_factory.generation = gen
     print(f"\n=== Geração {gen} ===")
 
+    if gen <= 50:
+        alpha_value = 0.7   
+    elif gen <= 2250:
+        alpha_value = 0.6   
+    else:
+        alpha_value = 0.4   
+
     h = trainer.train(
         env_factories=wrapper_env_factory,
         max_steps=MAX_STEPS,
         generations=1,
-        episodes_per_individual=1,   # como pediste
-        alpha=0.6,
+        episodes_per_individual=2,
+        alpha=alpha_value,
         verbose=True,
         external_generation_offset=gen - 1
     )
@@ -155,7 +162,7 @@ plt.tight_layout()
 plt.savefig("results/farol/plot_novelty.png", dpi=300)
 plt.close()
 
-print("Gráfico Novelty guardado em results/farol/plot_novelty.png")
+print("Gráfico Novelty guardado em results/farol/train/plot_novelty.png")
 
 
 # ============================================================
@@ -166,8 +173,8 @@ ok, score = trainer.save_champion(
     "model/best_agent_farol",
     env_factory=lambda: curriculum_env_factory(9999),
     max_steps=MAX_STEPS,
-    n_eval=20,
-    threshold=-10000
+    n_eval=10,
+    threshold=-100000
 )
 
 print("Champion saved:", ok, "| score:", score)

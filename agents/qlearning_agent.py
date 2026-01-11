@@ -101,24 +101,23 @@ class QLearningAgent(Agent):
             }, f)
 
     @classmethod
-    def load(cls, path: str, discretizer=None):
+    def load(cls, path: str, discretizer, id="q_loaded"):
         with open(path, "rb") as f:
             data = pickle.load(f)
 
         Q = np.array(data["Q"], dtype=np.float32)
-        n_states = Q.shape[0]
-        n_actions = Q.shape[1]
+        n_states, n_actions = Q.shape
 
         agent = cls(
-            id="q_loaded",
+            id=id,
             discretizer=discretizer,
             n_states=n_states,
             n_actions=n_actions,
             alpha=data.get("alpha", 0.1),
             gamma=data.get("gamma", 0.99),
-            epsilon=data.get("epsilon", 0.0),
-            epsilon_min=data.get("epsilon_min", 0.05),
-            epsilon_decay=data.get("epsilon_decay", 0.995),
+            epsilon=0.0,              # 🔒 avaliação pura
+            epsilon_min=0.0,
+            epsilon_decay=1.0
         )
 
         agent.Q = Q

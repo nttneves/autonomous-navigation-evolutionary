@@ -1,14 +1,15 @@
 import numpy as np
 import os
 
-from evaluation.evaluator import AgentEvaluator
+from evaluation.evaluator import AgentEvaluator, test_agent_same_protocol
 from environments.environment_maze import MazeEnv
 
 from agents.fixed_policy_agent import FixedPolicyAgent
 from agents.evolved_agent import EvolvedAgent
 from agents.qlearning_agent import QLearningAgent
 
-from main_qlearning_maze import test_agent_same_protocol
+from algorithms.qlearning_trainer import MazeObservationDiscretizer
+
 from model.model import create_mlp
 from algorithms.genetic import set_weights_vector
 
@@ -42,10 +43,7 @@ for DIFFICULTY in DIFFICULTIES:
     )
 
     # ================= EVOLVED =================
-    if DIFFICULTY == 2:
-        genome = np.load("model/best_agent_maze.npy")
-    else:
-         genome = np.load("model/best_agent_maze_2podre.npy")
+    genome = np.load("model/best_agent_maze.npy")
     
     model = create_mlp(input_dim=12)
     set_weights_vector(model, genome)
@@ -60,9 +58,12 @@ for DIFFICULTY in DIFFICULTIES:
     )
 
     # ================= Q-LEARNING =================
+    discretizer = MazeObservationDiscretizer()
+
     qlearning = AgentEvaluator(
         QLearningAgent.load(
             "model/best_agent_qlearning_maze.pkl",
+            discretizer=discretizer,
             id=f"qlearning_d{DIFFICULTY}"
         ),
         maze_env_factory,

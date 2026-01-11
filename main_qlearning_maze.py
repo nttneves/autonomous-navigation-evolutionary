@@ -13,7 +13,7 @@ if __name__ == "__main__":
         discretizer=discretizer
     )
 
-    dificuldade = 1
+    dificuldade = 2
     env = MazeEnv(dificuldade=dificuldade, max_steps=400)
 
     sim = Simulator(env, max_steps=400)

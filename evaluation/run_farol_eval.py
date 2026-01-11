@@ -1,13 +1,14 @@
 import numpy as np
 
-from evaluation.evaluator import AgentEvaluator
+from evaluation.evaluator import AgentEvaluator, test_agent_same_protocol
 from environments.environment_farol import FarolEnv
 
 from agents.fixed_policy_agent import FixedPolicyAgent
 from agents.evolved_agent import EvolvedAgent
 from agents.qlearning_agent import QLearningAgent
 
-from main_qlearning_farol import test_agent_same_protocol
+from algorithms.qlearning_trainer import FarolObservationDiscretizer
+
 from model.model import create_mlp
 from algorithms.genetic import set_weights_vector
 
@@ -42,8 +43,14 @@ evolved = AgentEvaluator(
 )
 
 # ================= Q-LEARNING =================
+discretizer = FarolObservationDiscretizer()
+
 qlearning = AgentEvaluator(
-    QLearningAgent.load("model/best_agent_qlearning_farol.pkl"),
+    QLearningAgent.load(
+        "model/best_agent_qlearning_farol.pkl",
+        discretizer=discretizer,
+        id="qlearning_farol"
+    ),
     farol_env_factory,
     test_agent_same_protocol,
     name="Q-learning"

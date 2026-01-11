@@ -41,7 +41,11 @@ class AgentEvaluator:
                 self.agent.reset()
 
             if hasattr(self.agent, "epsilon"):
-                self.agent.epsilon = 0.0  # teste puro
+                self.agent.epsilon = 0.0
+
+            # bloquear aprendizagem durante teste
+            if hasattr(self.agent, "alpha"):
+                self.agent.alpha = 0.0
 
             res = self.test_fn(
                 self.agent,
@@ -145,3 +149,24 @@ class AgentEvaluator:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         plt.savefig(path, dpi=300)
         plt.close()
+
+# =========================================================
+# PROTOCOLO DE TESTE PADRÃO (SEM APRENDIZAGEM)
+# =========================================================
+def test_agent_same_protocol(agent, env, max_steps=1000, render=False):
+    from simulator.simulator import Simulator
+
+    sim = Simulator(env, max_steps=max_steps)
+    sim.agentes.clear()
+    sim.agentes[agent.id] = agent
+
+    sim.reset_env()
+    res = sim.run_episode(render=render)
+
+    return {
+        "total_reward": res.get("total_reward", 0.0),
+        "steps": res.get("steps", max_steps),
+        "reached_goal": res.get("reached_goal", False),
+        "final_pos": res.get("final_pos", None),
+        "goal_pos": res.get("goal_pos", None),
+    }
