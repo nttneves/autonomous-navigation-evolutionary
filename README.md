@@ -135,6 +135,37 @@ Evaluate trained agents:
 python -m evaluation.run_maze_eval
 python -m evaluation.run_farol_eval
 ```
+Train the qlearning agent in the Maze environment:
+```bash
+python train_qlearning_maze.py
+```
+
+Train the qlearning agent in the Lighthouse environment:
+```bash
+python train_qlearning_farol.py
+```
+
+Test the fixed agent and changing the json file to be in the Lighthouse or Maze environment:
+```bash
+python main_fixed_policy.py
+```
+
+Test the evolved agent in the Maze environment.To adjust the difficulty, change the value on this line "env = MazeEnv(dificuldade=2, max_steps=300)":
+```bash
+python main_evolved_maze.py
+```
+Test the evolved agent in the Lighthouse environment.To adjust the difficulty, change the value on this line "env = FarolEnv(tamanho = (50,50), dificuldade=1, max_steps=350)":
+```bash
+python main_evolved_farol.py
+```
+Test the qlearning agent in the Maze environment.To adjust the difficulty, change the value on this line "dificuldade = 2":
+```bash
+python main_qlearning_maze.py
+```
+Test the qlearning agent in the Lighthouse environment.To adjust the difficulty, change the value on this line "env = FarolEnv((50,50), dificuldade=1, max_steps=300)":
+```bash
+python main_qlearning_maze.py
+```
 
 ## Authors
 
