@@ -89,13 +89,37 @@ Comparative plots are generated for each environment and difficulty level.
 
 ## Visual Results
 
-Maze Agent Behaviour
+### Maze Agent Behaviour
 
-(Place videos or GIFs of Maze agents here)
+- Fixed Policy Agent
 
-Lighthouse Agent Behaviour
+**Difficulty 0**  
+![Fixed agent – difficulty 0](media/maze0_fixed.gif)
 
-(Place videos or GIFs of Lighthouse agents here)
+**Difficulty 1**  
+![Fixed agent – difficulty 1](media/maze1_fixed.gif)
+
+**Difficulty 2**  
+![Fixed agent – difficulty 2](media/maze2_fixed.gif)
+
+- Evolved Agent
+
+| Difficulty 0 | Difficulty 1 | Difficulty 2 |
+|--------------|--------------|--------------|
+| ![](media/maze_evolved_d0.gif) | ![](media/maze_evolved_d1.gif) | ![](media/maze_evolved_d2.gif) |
+
+
+### Lighthouse Agent Behaviour
+
+- Fixed Agent
+![Fixed agent navigating the lighthouse environment](media/farol_fixed.gif)
+
+- Evolved Agent
+![Evolved agent navigating the lighthouse environment](media/farol_evolved.gif)
+
+- Q-learing Agent
+![Q-learning agent navigating the lighthouse environment](media/farol_qlearning.gif)
+
 
 ## Project Structure
 
