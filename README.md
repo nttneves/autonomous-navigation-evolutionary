@@ -153,11 +153,42 @@ Train the evolutionary agent in the Lighthouse environment:
 ```bash
 python train_farol.py
 ```
+Train the qlearning agent in the Maze environment:
+```bash
+python train_qlearning_maze.py
+```
+
+Train the qlearning agent in the Lighthouse environment:
+```bash
+python train_qlearning_farol.py
+```
 
 Evaluate trained agents:
 ```bash
 python -m evaluation.run_maze_eval
 python -m evaluation.run_farol_eval
+```
+
+Test the fixed agent and changing the json file to be in the Lighthouse or Maze environment:
+```bash
+python main_fixed_policy.py
+```
+
+Test the evolved agent in the Maze environment:
+```bash
+python main_evolved_maze.py
+```
+Test the evolved agent in the Lighthouse environment:
+```bash
+python main_evolved_farol.py
+```
+Test the qlearning agent in the Maze environment:
+```bash
+python main_qlearning_maze.py
+```
+Test the qlearning agent in the Lighthouse environment:
+```bash
+python main_qlearning_maze.py
 ```
 
 ## Authors
