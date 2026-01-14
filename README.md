@@ -91,34 +91,32 @@ Comparative plots are generated for each environment and difficulty level.
 
 ### Maze Agent Behaviour
 
-- Fixed Policy Agent
+**Fixed Policy Agent**
+  
+| Difficulty 0 | Difficulty 1 | Difficulty 2 |
+|--------------|--------------|--------------|
+| ![](media/maze0_fixed.gif) | ![](media/maze1_fixed.gif) | ![](media/maze2_fixed.gif) |
 
-**Difficulty 0**  
-![Fixed agent – difficulty 0](media/maze0_fixed.gif)
 
-**Difficulty 1**  
-![Fixed agent – difficulty 1](media/maze1_fixed.gif)
-
-**Difficulty 2**  
-![Fixed agent – difficulty 2](media/maze2_fixed.gif)
-
-- Evolved Agent
+**Evolved Agent**
 
 | Difficulty 0 | Difficulty 1 | Difficulty 2 |
 |--------------|--------------|--------------|
-| ![](media/maze_evolved_d0.gif) | ![](media/maze_evolved_d1.gif) | ![](media/maze_evolved_d2.gif) |
+| ![](media/maze0_evolved.gif) | ![](media/maze1_evolved.gif) | ![](media/maze2_evolved.gif) |
+
+
+**Q-learning Agent**
+
+| Difficulty 0 | Difficulty 1 | Difficulty 2 |
+|--------------|--------------|--------------|
+| ![](media/maze0_qlearning.gif) | ![](media/maze1_qlearning.gif) | ![](media/maze2_qlearning.gif) |
 
 
 ### Lighthouse Agent Behaviour
 
-- Fixed Agent
-![Fixed agent navigating the lighthouse environment](media/farol_fixed.gif)
-
-- Evolved Agent
-![Evolved agent navigating the lighthouse environment](media/farol_evolved.gif)
-
-- Q-learing Agent
-![Q-learning agent navigating the lighthouse environment](media/farol_qlearning.gif)
+| Fixed Agent | Evolved Agent | Q-learning Agent |
+|--------------|--------------|--------------|
+| ![](media/farol_fixed.gif) | ![](media/farol_evolved.gif) | ![](media/farol_qlearning.gif) |
 
 
 ## Project Structure
